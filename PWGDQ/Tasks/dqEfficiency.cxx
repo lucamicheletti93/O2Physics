@@ -679,18 +679,20 @@ struct AnalysisSameEventPairing {
         VarManager::FillPairVertexing<TPairType, TEventFillMap, TTrackFillMap>(event, t1, t2, VarManager::fgValues);
       }
 
+      /*
       dileptonFilterMap = twoTrackFilter;
       dileptonList(event, VarManager::fgValues[VarManager::kMass], VarManager::fgValues[VarManager::kPt], VarManager::fgValues[VarManager::kEta], VarManager::fgValues[VarManager::kPhi], t1.sign() + t2.sign(), dileptonFilterMap);
       constexpr bool muonHasCov = ((TTrackFillMap & VarManager::ObjTypes::MuonCov) > 0 || (TTrackFillMap & VarManager::ObjTypes::ReducedMuonCov) > 0);
       if constexpr ((TPairType == VarManager::kJpsiToMuMu) && muonHasCov) {
         dileptonExtraList(t1.globalIndex(), t2.globalIndex(), VarManager::fgValues[VarManager::kVertexingTauz], VarManager::fgValues[VarManager::kVertexingLz], VarManager::fgValues[VarManager::kVertexingLxy]);
       }
+      */
 
       // run MC matching for this pair
       uint32_t mcDecision = 0;
       int isig = 0;
       for (auto sig = fRecMCSignals.begin(); sig != fRecMCSignals.end(); sig++, isig++) {
-        if constexpr (TTrackFillMap & VarManager::ObjTypes::ReducedTrack || TTrackFillMap & VarManager::ObjTypes::ReducedMuon) { // for skimmed DQ model
+	if constexpr (TTrackFillMap & VarManager::ObjTypes::ReducedTrack || TTrackFillMap & VarManager::ObjTypes::ReducedMuon) { // for skimmed DQ model
           if ((*sig).CheckSignal(false, tracksMC, t1.reducedMCTrack(), t2.reducedMCTrack())) {
             mcDecision |= (uint32_t(1) << isig);
           }
@@ -701,6 +703,13 @@ struct AnalysisSameEventPairing {
           }
         }
       } // end loop over MC signals
+
+      dileptonFilterMap = mcDecision;
+      dileptonList(event, VarManager::fgValues[VarManager::kMass], VarManager::fgValues[VarManager::kPt], VarManager::fgValues[VarManager::kEta], VarManager::fgValues[VarManager::kPhi], t1.sign() + t2.sign(), dileptonFilterMap);
+      constexpr bool muonHasCov = ((TTrackFillMap & VarManager::ObjTypes::MuonCov) > 0 || (TTrackFillMap & VarManager::ObjTypes::ReducedMuonCov) > 0);
+      if constexpr ((TPairType == VarManager::kJpsiToMuMu) && muonHasCov) {
+        dileptonExtraList(t1.globalIndex(), t2.globalIndex(), VarManager::fgValues[VarManager::kVertexingTauz], VarManager::fgValues[VarManager::kVertexingLz], VarManager::fgValues[VarManager::kVertexingLxy]);
+      }
 
       // Loop over all fulfilled cuts and fill pair histograms
       for (unsigned int icut = 0; icut < ncuts; icut++) {
@@ -722,7 +731,7 @@ struct AnalysisSameEventPairing {
         }
       }
     } // end loop over barrel track pairs
-  }   // end runPairing
+  } // end runPairing
 
   template <typename TTracksMC>
   void runMCGen(TTracksMC const& groupedMCTracks)
@@ -757,7 +766,7 @@ struct AnalysisSameEventPairing {
         }
       }
     } //end of true pairing loop
-  }   // end runMCGen
+  }  // end runMCGen
 
   void processJpsiToEESkimmed(soa::Filtered<MyEventsSelected>::iterator const& event,
                               soa::Filtered<MyBarrelTracksSelected> const& tracks,
@@ -799,6 +808,8 @@ struct AnalysisSameEventPairing {
     runPairing<VarManager::kJpsiToMuMu, gkEventFillMapWithCov, gkMCEventFillMap, gkMuonFillMapWithCov>(event, muons, muons, eventsMC, tracksMC);
     auto groupedMCTracks = tracksMC.sliceBy(aod::reducedtrackMC::reducedMCeventId, event.reducedMCevent().globalIndex());
     runMCGen(groupedMCTracks);
+    //std::cout << "End of RunMC gen" << std::endl;
+    //std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
   }
 
   /*void processElectronMuonSkimmed(soa::Filtered<MyEventsSelected>::iterator const& event,
