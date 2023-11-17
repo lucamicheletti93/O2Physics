@@ -124,6 +124,7 @@ DECLARE_SOA_COLUMN(DcaXY, dcaXY, float);               //!
 DECLARE_SOA_COLUMN(DcaZ, dcaZ, float);                 //!
 DECLARE_SOA_COLUMN(DetectorMap, detectorMap, uint8_t); //! Detector map: see enum DetectorMapEnum
 DECLARE_SOA_INDEX_COLUMN(Collision, collision);        //!
+DECLARE_SOA_INDEX_COLUMN(Track, track);                //!
 DECLARE_SOA_DYNAMIC_COLUMN(HasITS, hasITS,             //! Flag to check if track has a ITS match
                            [](uint8_t detectorMap) -> bool { return detectorMap & o2::aod::track::ITS; });
 DECLARE_SOA_DYNAMIC_COLUMN(HasTPC, hasTPC, //! Flag to check if track has a TPC match
@@ -187,11 +188,15 @@ DECLARE_SOA_TABLE(ReducedTracksBarrelPID, "AOD", "RTBARRELPID", //!
 DECLARE_SOA_TABLE(ReducedTracksBarrelInfo, "AOD", "RTBARRELINFO",
                   reducedtrack::CollisionId, collision::PosX, collision::PosY, collision::PosZ);
 
+DECLARE_SOA_TABLE(ReducedTracksBarrelExtraInfo, "AOD", "RTBARRELEXTINFO",
+                  reducedtrack::TrackId);
+
 using ReducedTrack = ReducedTracks::iterator;
 using ReducedTrackBarrel = ReducedTracksBarrel::iterator;
 using ReducedTrackBarrelCov = ReducedTracksBarrelCov::iterator;
 using ReducedTrackBarrelPID = ReducedTracksBarrelPID::iterator;
 using ReducedTrackBarrelInfo = ReducedTracksBarrelInfo::iterator;
+using ReducedTrackBarrelExtraInfo = ReducedTracksBarrelExtraInfo::iterator;
 
 namespace reducedtrackMC
 {
@@ -294,6 +299,7 @@ DECLARE_SOA_COLUMN(FwdDcaX, fwdDcaX, float);       //!  Impact parameter in X of
 DECLARE_SOA_COLUMN(FwdDcaY, fwdDcaY, float);       //!  Impact parameter in Y of forward track to the primary vertex
 DECLARE_SOA_COLUMN(IsAmbiguous, isAmbiguous, int); //!
 DECLARE_SOA_INDEX_COLUMN(Collision, collision);    //!
+DECLARE_SOA_INDEX_COLUMN(Track, track);            //!
 DECLARE_SOA_DYNAMIC_COLUMN(Px, px,                 //!
                            [](float pt, float phi) -> float { return pt * std::cos(phi); });
 DECLARE_SOA_DYNAMIC_COLUMN(Py, py, //!
@@ -344,11 +350,15 @@ DECLARE_SOA_TABLE(ReducedMuonsCov, "AOD", "RTMUONCOV",
 DECLARE_SOA_TABLE(ReducedMuonsInfo, "AOD", "RTMUONINFO",
                   reducedmuon::CollisionId, collision::PosX, collision::PosY, collision::PosZ);
 
+DECLARE_SOA_TABLE(ReducedMuonsExtraInfo, "AOD", "RTMUONEXTINFO",
+                  reducedmuon::TrackId);
+
 // iterators
 using ReducedMuon = ReducedMuons::iterator;
 using ReducedMuonExtra = ReducedMuonsExtra::iterator;
 using ReducedMuonCov = ReducedMuonsCov::iterator;
 using ReducedMuonInfo = ReducedMuonsInfo::iterator;
+using ReducedMuonExtraInfo = ReducedMuonsExtraInfo::iterator;
 
 namespace reducedmuonlabel
 {
@@ -453,6 +463,8 @@ DECLARE_SOA_COLUMN(U3Q3, u3q3, float);                 //! Scalar product betwee
 DECLARE_SOA_COLUMN(Cos2DeltaPhi, cos2deltaphi, float); //! Cosinus term using event plane angle (harmonic 2)
 DECLARE_SOA_COLUMN(Cos3DeltaPhi, cos3deltaphi, float); //! Cosinus term using event plane angle (harmonic 3)
 DECLARE_SOA_COLUMN(CollisionId, collisionId, int);     //!
+DECLARE_SOA_COLUMN(TrackId0, trackId0, int);           //! Global index of prong 0
+DECLARE_SOA_COLUMN(TrackId1, trackId1, int);           //! Global index of prong 1
 // DECLARE_SOA_INDEX_COLUMN(ReducedMuon, reducedmuon2); //!
 DECLARE_SOA_DYNAMIC_COLUMN(Px, px, //!
                            [](float pt, float phi) -> float { return pt * std::cos(phi); });
@@ -494,6 +506,9 @@ DECLARE_SOA_TABLE(DileptonsFlow, "AOD", "RTDILEPTONFLOW", //!
 DECLARE_SOA_TABLE(DileptonsInfo, "AOD", "RTDILEPTONINFO",
                   reducedpair::CollisionId, collision::PosX, collision::PosY, collision::PosZ);
 
+DECLARE_SOA_TABLE(DileptonsExtraInfo, "AOD", "RTDILEPTEXTINFO",
+                  reducedpair::TrackId0, reducedpair::TrackId1);
+
 DECLARE_SOA_TABLE(DimuonsAll, "AOD", "RTDIMUONALL", //!
                   collision::PosX, collision::PosY, collision::PosZ, collision::NumContrib,
                   reducedevent::MCPosX, reducedevent::MCPosY, reducedevent::MCPosZ,
@@ -520,6 +535,7 @@ using Dilepton = Dileptons::iterator;
 using DileptonExtra = DileptonsExtra::iterator;
 using DileptonFlow = DileptonsFlow::iterator;
 using DileptonInfo = DileptonsInfo::iterator;
+using DileptonExtraInfo = DileptonsExtraInfo::iterator;
 using DimuonAll = DimuonsAll::iterator;
 
 // candidate information
