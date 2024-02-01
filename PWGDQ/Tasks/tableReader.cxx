@@ -1296,6 +1296,139 @@ struct AnalysisFwdTrackPid {
   PROCESS_SWITCH(AnalysisFwdTrackPid, processDummy, "Dummy function", false);
 };
 
+
+struct AnalysisTagAndProbe {
+
+  Filter filterEventSelected = aod::dqanalysisflags::isEventSelected == 1;
+  Filter filterMuonTrackSelected = aod::dqanalysisflags::isMuonSelected > 0;
+
+  Configurable<float> fConfigMaxDCA{"cfgMaxDCA", 0.5f, "Manually set maximum DCA of the track"};
+
+  //Histogram registry
+  HistogramRegistry registry{"registry", {}, OutputObjHandlingPolicy::AnalysisObject};
+
+  void init(o2::framework::InitContext& context)
+  {
+    const AxisSpec axisTrackType{5,-0.5,4.5,"Track type"};
+    const AxisSpec axisPt{1000,0,100,"#it{p}_{T} (GeV/#it{c})"};
+    const AxisSpec axisPtProbe{100,0,100,"#it{p}_{T}^{Probe} (GeV/#it{c})"};
+    const AxisSpec axisEta{100,-5,-1,"#eta"};
+    const AxisSpec axisPhi{100,-7,7,"#phi"};
+    const AxisSpec axisMass{100,2,5,"Mass (GeV/#it{c}^{2})"};
+
+    registry.add("histPtProbe","histPtProbe",kTH1F,{axisPt});
+    registry.add("histPtTag","histPtTag",kTH1F,{axisPt});
+    registry.add("histEtaProbe","histEtaProbe",kTH1F,{axisEta});
+    registry.add("histEtaTag","histEtaTag",kTH1F,{axisEta});
+
+    registry.add("histMchMassPtAllProbe","histMassPtAllProbe",kTH2F,{axisMass,axisPtProbe});
+    registry.add("histMchMassPtPassProbe","histMassPtPassProbe",kTH2F,{axisMass,axisPtProbe});
+    registry.add("histMchMassPtFailProbe","histMassPtFailProbe",kTH2F,{axisMass,axisPtProbe});
+
+    registry.add("histMchMidMassPtAllProbe","histMassPtAllProbe",kTH2F,{axisMass,axisPtProbe});
+    registry.add("histMchMidMassPtPassProbe","histMassPtPassProbe",kTH2F,{axisMass,axisPtProbe});
+    registry.add("histMchMidMassPtFailProbe","histMassPtFailProbe",kTH2F,{axisMass,axisPtProbe});
+  }
+
+  template <bool TTwoProngFitter, int TPairType, uint32_t TEventFillMap, uint32_t TTrackFillMap, typename TEvent, typename TTracks1, typename TTracks2>
+  void runTagAndProbe(TEvent const& event, TTracks1 const& tracks1, TTracks2 const& tracks2)
+  {
+    double muonMass = o2::constants::physics::MassMuon;
+
+    std::vector<int> listOfTags;
+    for (auto& track : tracks1) {
+      double muon1RAtAbsorberEnd = track.rAtAbsorberEnd();
+      double muon1Chi2MatchMCHMID = track.chi2MatchMCHMID();
+      double muon1Chi2MatchMCHMFT = track.chi2MatchMCHMFT();
+      auto muon1TrackType = track.trackType();
+
+      if (muon1RAtAbsorberEnd > 17.6 && muon1RAtAbsorberEnd < 89.5) {
+        if (muon1Chi2MatchMCHMID > 0 && muon1Chi2MatchMCHMFT > 0 && muon1Chi2MatchMCHMFT < 40) {
+          if (muon1TrackType == 0) {
+            listOfTags.push_back(track.globalIndex());
+            registry.fill(HIST("histPtTag"), track.pt());
+            registry.fill(HIST("histEtaTag"), track.eta());
+          }
+        }
+      }
+    }
+
+    for (auto& [t1, t2] : combinations(tracks1, tracks2)) {
+      if constexpr (TPairType == VarManager::kDecayToMuMu) {
+        int muonTrackType;
+        double probePt = -999;
+        double probeEta = -999;
+        bool probeHasMatch;
+        if (std::find(listOfTags.begin(), listOfTags.end(), t1.globalIndex()) != listOfTags.end()) {
+          //LOGP(info, "[{}] is the TAG", t1.globalIndex());
+          muonTrackType = t2.trackType();
+          probePt = t2.pt();
+          probeEta = t2.eta();
+          probeHasMatch = t2.has_matchMFTTrack();
+        } else if (std::find(listOfTags.begin(), listOfTags.end(), t2.globalIndex()) != listOfTags.end()) {
+          //LOGP(info, "[{}] is the TAG", t2.globalIndex());
+          muonTrackType = t1.trackType();
+          probePt = t1.pt();
+          probeEta = t1.eta();
+          probeHasMatch = t1.has_matchMFTTrack();
+        } else {
+          continue;
+        }
+
+        registry.fill(HIST("histPtProbe"), probePt);
+        registry.fill(HIST("histEtaProbe"), probeEta);
+
+        ROOT::Math::PtEtaPhiMVector tag(t1.pt(), t1.eta(), t1.phi(), muonMass);
+        ROOT::Math::PtEtaPhiMVector prb(t2.pt(), t2.eta(), t2.phi(), muonMass);
+        ROOT::Math::PtEtaPhiMVector tagAndProbe = tag + prb;
+        double dimuMass = tagAndProbe.M();
+        int dimuSign = t1.sign() + t2.sign();
+
+        if (dimuSign == 0) {
+          if (muonTrackType > -2.5 && muonTrackType < 3.5) {
+            registry.fill(HIST("histMchMidMassPtAllProbe"), dimuMass, probePt);
+            if (probeHasMatch) {
+              registry.fill(HIST("histMchMidMassPtPassProbe"), dimuMass, probePt);
+            } else {
+              registry.fill(HIST("histMchMidMassPtFailProbe"), dimuMass, probePt);
+            }
+          }
+
+          if (muonTrackType > -3.5 && muonTrackType < 4.5) {
+            registry.fill(HIST("histMchMassPtAllProbe"), dimuMass, probePt);
+            if (probeHasMatch) {
+              registry.fill(HIST("histMchMassPtPassProbe"), dimuMass, probePt);
+            } else {
+              registry.fill(HIST("histMchMassPtFailProbe"), dimuMass, probePt);
+            }
+          }
+
+          //LOGP(info, "[{}] {} ; {} ; {} -> {}", t1.globalIndex(), t1.pt(), t1.eta(), t1.phi(), t1.trackType());
+          //LOGP(info, "[{}] {} ; {} ; {} -> {}", t2.globalIndex(), t2.pt(), t2.eta(), t2.phi(), t2.trackType());
+          //LOGP(info, "***********************");
+        }
+      }
+    }
+  }
+
+  void processTagAndProbe(soa::Filtered<MyEventsSelected>::iterator const& event, MyMuonTracks const& muons)
+  {
+    if (muons.size() > 1) {
+      runTagAndProbe<true, VarManager::kDecayToMuMu, gkEventFillMap, gkMuonFillMap>(event, muons, muons);
+      //LOGP(info, "---------------------------");
+    }
+  }
+
+  void processDummy(MyEvents&)
+  {
+    // do nothing
+  }
+
+  PROCESS_SWITCH(AnalysisTagAndProbe, processTagAndProbe, "Run tag-and-probe for muon tracks", true);
+  PROCESS_SWITCH(AnalysisTagAndProbe, processDummy, "Dummy function", false);
+
+};
+
 struct AnalysisDileptonHadron {
   //
   // This task combines dilepton candidates with a track and could be used for example
@@ -1530,6 +1663,7 @@ WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)
     adaptAnalysisTask<AnalysisEventMixing>(cfgc),
     adaptAnalysisTask<AnalysisSameEventPairing>(cfgc),
     adaptAnalysisTask<AnalysisFwdTrackPid>(cfgc),
+    adaptAnalysisTask<AnalysisTagAndProbe>(cfgc),
     adaptAnalysisTask<AnalysisDileptonHadron>(cfgc)};
 }
 
