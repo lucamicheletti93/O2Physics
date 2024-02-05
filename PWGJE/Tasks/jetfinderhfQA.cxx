@@ -401,10 +401,12 @@ struct JetFinderHFQATask {
   PresliceOptional<soa::Filtered<JetTracksDataSub>> perD0CandidateTracks = aod::bkgd0::candidateId;
   PresliceOptional<soa::Filtered<JetTracksDataSub>> perLcCandidateTracks = aod::bkglc::candidateId;
   PresliceOptional<soa::Filtered<JetTracksDataSub>> perBplusCandidateTracks = aod::bkgbplus::candidateId;
+  PresliceOptional<soa::Filtered<JetTracksDataSub>> perDileptonCandidateTracks = aod::bkgdilepton::candidateId;
 
   PresliceOptional<BkgRhoTable> perD0CandidateRhos = aod::bkgd0::candidateId;
   PresliceOptional<BkgRhoTable> perLcCandidateRhos = aod::bkglc::candidateId;
   PresliceOptional<BkgRhoTable> perBplusCandidateRhos = aod::bkgbplus::candidateId;
+  PresliceOptional<BkgRhoTable> perDileptonCandidateRhos = aod::bkgdilepton::candidateId;
 
   template <typename T, typename U>
   void fillHistograms(T const& jet, float centrality, float weight = 1.0)
@@ -1120,7 +1122,7 @@ struct JetFinderHFQATask {
     }
     for (auto const& candidate : candidates) {
 
-      for (auto const& track : jethfutilities::slicedPerCandidate(tracks, candidate, perD0CandidateTracks, perLcCandidateTracks, perBplusCandidateTracks)) {
+      for (auto const& track : jethfutilities::slicedPerCandidate(tracks, candidate, perD0CandidateTracks, perLcCandidateTracks, perBplusCandidateTracks, perDileptonCandidateTracks)) {
         registry.fill(HIST("h_track_pt_eventwiseconstituentsubtracted"), track.pt());
         registry.fill(HIST("h_track_eta_eventwiseconstituentsubtracted"), track.eta());
         registry.fill(HIST("h_track_phi_eventwiseconstituentsubtracted"), track.phi());
@@ -1133,7 +1135,7 @@ struct JetFinderHFQATask {
   void processRho(JetCollision const& collision, CandidateTableData const& candidates, BkgRhoTable const& bkgRhos, soa::Filtered<JetTracks> const& tracks)
   {
     for (auto const& candidate : candidates) {
-      auto bkgRho = jethfutilities::slicedPerCandidate(bkgRhos, candidate, perD0CandidateRhos, perLcCandidateRhos, perBplusCandidateRhos).iteratorAt(0);
+      auto bkgRho = jethfutilities::slicedPerCandidate(bkgRhos, candidate, perD0CandidateRhos, perLcCandidateRhos, perBplusCandidateRhos, perDileptonCandidateRhos).iteratorAt(0);
       int nTracks = 0;
       TRandom3 rand(0);
       float randomConeEta = rand.Uniform(trackEtaMin + randomConeR, trackEtaMax - randomConeR);
@@ -1171,7 +1173,7 @@ struct JetFinderHFQATask {
         continue;
       }
       auto const jetCandidate = jet.template hfcandidates_first_as<CandidateTableData>();
-      auto bkgRho = jethfutilities::slicedPerCandidate(bkgRhos, jetCandidate, perD0CandidateRhos, perLcCandidateRhos, perBplusCandidateRhos).iteratorAt(0);
+      auto bkgRho = jethfutilities::slicedPerCandidate(bkgRhos, jetCandidate, perD0CandidateRhos, perLcCandidateRhos, perBplusCandidateRhos, perDileptonCandidateRhos).iteratorAt(0);
       fillRhoAreaSubtractedHistograms<typename JetTableDataJoined::iterator, CandidateTableData>(jet, collision.centrality(), bkgRho.rho());
     }
   }

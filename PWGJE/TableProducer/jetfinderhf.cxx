@@ -142,6 +142,7 @@ struct JetFinderHFTask {
   PresliceOptional<soa::Filtered<JetTracksSubTable>> perD0Candidate = aod::bkgd0::candidateId;
   PresliceOptional<soa::Filtered<JetTracksSubTable>> perLcCandidate = aod::bkglc::candidateId;
   PresliceOptional<soa::Filtered<JetTracksSubTable>> perBplusCandidate = aod::bkgbplus::candidateId;
+  PresliceOptional<soa::Filtered<JetTracksSubTable>> perDileptonCandidate = aod::bkgdilepton::candidateId;
 
   // function that generalically processes Data and reco level events
   template <typename T, typename U, typename V, typename M, typename N, typename O>
@@ -199,7 +200,7 @@ struct JetFinderHFTask {
   void processChargedEvtWiseSubJetsData(soa::Filtered<JetCollisions>::iterator const& collision, soa::Filtered<JetTracksSubTable> const& tracks, CandidateTableData const& candidates)
   {
     for (typename CandidateTableData::iterator const& candidate : candidates) {
-      analyseCharged(collision, jethfutilities::slicedPerCandidate(tracks, candidate, perD0Candidate, perLcCandidate, perBplusCandidate), candidate, jetsEvtWiseSubTable, constituentsEvtWiseSubTable, tracks);
+      analyseCharged(collision, jethfutilities::slicedPerCandidate(tracks, candidate, perD0Candidate, perLcCandidate, perBplusCandidate, perDileptonCandidate), candidate, jetsEvtWiseSubTable, constituentsEvtWiseSubTable, tracks);
     }
   }
   PROCESS_SWITCH(JetFinderHFTask, processChargedEvtWiseSubJetsData, "charged hf jet finding on data with event-wise constituent subtraction", false);
@@ -215,7 +216,7 @@ struct JetFinderHFTask {
   void processChargedEvtWiseSubJetsMCD(soa::Filtered<JetCollisions>::iterator const& collision, soa::Filtered<JetTracksSubTable> const& tracks, CandidateTableMCD const& candidates)
   {
     for (typename CandidateTableMCD::iterator const& candidate : candidates) {
-      analyseCharged(collision, jethfutilities::slicedPerCandidate(tracks, candidate, perD0Candidate, perLcCandidate, perBplusCandidate), candidate, jetsEvtWiseSubTable, constituentsEvtWiseSubTable, tracks);
+      analyseCharged(collision, jethfutilities::slicedPerCandidate(tracks, candidate, perD0Candidate, perLcCandidate, perBplusCandidate, perDileptonCandidate), candidate, jetsEvtWiseSubTable, constituentsEvtWiseSubTable, tracks);
     }
   }
   PROCESS_SWITCH(JetFinderHFTask, processChargedEvtWiseSubJetsMCD, "charged hf jet finding on MC detector level with event-wise constituent subtraction", false);
@@ -241,6 +242,10 @@ using JetFinderBplusMCDetectorLevelCharged = JetFinderHFTask<CandidatesBplusData
 using JetFinderBplusMCParticleLevelCharged = JetFinderHFTask<CandidatesBplusData,CandidatesBplusMCD,CandidatesBplusMCP,JetTracksSubBplus,aod::BplusChargedMCParticleLevelJets, aod::BplusChargedMCParticleLevelJetConstituents, aod::BplusChargedMCParticleLevelEventWiseSubtractedJets, aod::BplusChargedMCParticleLevelEventWiseSubtractedJetConstituents>;
 
 using JetFinderLcDataCharged = JetFinderHFTask<CandidatesLcData,CandidatesLcMCD,CandidatesLcMCP,JetTracksSubLc,aod::LcChargedJets, aod::LcChargedJetConstituents,aod::LcChargedEventWiseSubtractedJets, aod::LcChargedEventWiseSubtractedJetConstituents>;
+using JetFinderLcMCDetectorLevelCharged = JetFinderHFTask<CandidatesLcData,CandidatesLcMCD,CandidatesLcMCP,JetTracksSubLc,aod::LcChargedMCDetectorLevelJets, aod::LcChargedMCDetectorLevelJetConstituents, aod::LcChargedMCDetectorLevelEventWiseSubtractedJets, aod::LcChargedMCDetectorLevelEventWiseSubtractedJetConstituents>;
+using JetFinderLcMCParticleLevelCharged = JetFinderHFTask<CandidatesLcData,CandidatesLcMCD,CandidatesLcMCP,JetTracksSubLc,aod::LcChargedMCParticleLevelJets, aod::LcChargedMCParticleLevelJetConstituents, aod::LcChargedMCParticleLevelEventWiseSubtractedJets, aod::LcChargedMCParticleLevelEventWiseSubtractedJetConstituents>;
+
+using JetFinderDileptonDataCharged = JetFinderHFTask<CandidatesDileptonData,CandidatesLcMCD,CandidatesLcMCP,JetTracksSubLc,aod::DileptonChargedJets, aod::DileptonChargedJetConstituents,aod::DileptonChargedEventWiseSubtractedJets, aod::DileptonChargedEventWiseSubtractedJetConstituents>;
 using JetFinderLcMCDetectorLevelCharged = JetFinderHFTask<CandidatesLcData,CandidatesLcMCD,CandidatesLcMCP,JetTracksSubLc,aod::LcChargedMCDetectorLevelJets, aod::LcChargedMCDetectorLevelJetConstituents, aod::LcChargedMCDetectorLevelEventWiseSubtractedJets, aod::LcChargedMCDetectorLevelEventWiseSubtractedJetConstituents>;
 using JetFinderLcMCParticleLevelCharged = JetFinderHFTask<CandidatesLcData,CandidatesLcMCD,CandidatesLcMCP,JetTracksSubLc,aod::LcChargedMCParticleLevelJets, aod::LcChargedMCParticleLevelJetConstituents, aod::LcChargedMCParticleLevelEventWiseSubtractedJets, aod::LcChargedMCParticleLevelEventWiseSubtractedJetConstituents>;
 

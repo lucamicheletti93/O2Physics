@@ -61,6 +61,7 @@ struct JetDerivedDataProducerTask {
   Produces<aod::JClusterTracks> jClustersMatchedTracksTable;
   Produces<aod::JD0Ids> jD0IdsTable;
   Produces<aod::JD0PIds> jD0ParticleIdsTable;
+  Produces<aod::JDileptonIds> jDileptonIdsTable;
 
   Preslice<aod::EMCALClusterCells> perClusterCells = aod::emcalclustercell::emcalclusterId;
   Preslice<aod::EMCALMatchedTracks> perClusterTracks = aod::emcalclustercell::emcalclusterId;
@@ -202,6 +203,12 @@ struct JetDerivedDataProducerTask {
     jD0ParticleIdsTable(D0.mcCollisionId(), D0.mcParticleId());
   }
   PROCESS_SWITCH(JetDerivedDataProducerTask, processD0MC, "produces derived bunch crossing table for D0 particles", false);
+
+  void processDilepton(soa::Join<aod::Dileptons, aod::DileptonsInfo, aod::DileptonsTrackInfo>::iterator const& Dilepton, soa::Join<aod::Collisions, aod::EvSels> const& collisions, aod::Tracks const& tracks)
+  {
+    jDileptonIdsTable(Dilepton.collisionId(), Dilepton.prong0Id(), Dilepton.prong1Id());
+  }
+  PROCESS_SWITCH(JetDerivedDataProducerTask, processDilepton, "produces derived bunch crossing table for Dilepton candidates", false);
 };
 
 WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)

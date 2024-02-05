@@ -33,6 +33,8 @@
 #include "PWGHF/DataModel/DerivedTables.h"
 #include "PWGHF/DataModel/CandidateSelectionTables.h"
 
+#include "PWGDQ/DataModel/ReducedInfoTables.h"
+
 namespace o2::aod
 {
 
@@ -163,6 +165,7 @@ DECLARE_JET_TABLES_LEVELS(Neutral, JTrackSub, HfD0Bases, HfD0PBases, "N");
 DECLARE_JET_TABLES_LEVELS(D0Charged, JTrackD0Sub, HfD0Bases, HfD0PBases, "D0");
 DECLARE_JET_TABLES_LEVELS(LcCharged, JTrackLcSub, HfCand3Prong, HfD0PBases, "Lc");
 DECLARE_JET_TABLES_LEVELS(BplusCharged, JTrackBplusSub, HfCandBplus, HfD0PBases, "BPl");
+DECLARE_JET_TABLES_LEVELS(DileptonCharged, JTrackDileptonSub, Dileptons, Dileptons, "DilPl");
 
 } // namespace o2::aod
 
@@ -193,5 +196,7 @@ using JetTracksSubBplus = o2::aod::JTrackBplusSubs;
 using CandidatesLcData = o2::soa::Join<o2::aod::HfCand3Prong, o2::aod::HfSelLc>;
 using CandidatesLcMCD = o2::soa::Join<o2::aod::HfCand3Prong, o2::aod::HfSelLc, o2::aod::HfCand3ProngMcRec>;
 using JetTracksSubLc = o2::aod::JTrackLcSubs;
+
+using CandidatesDileptonData = o2::soa::Join<o2::aod::Dileptons, o2::aod::JDileptonIds>;
 
 #endif // PWGJE_DATAMODEL_JET_H_

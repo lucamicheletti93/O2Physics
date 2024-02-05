@@ -157,6 +157,49 @@ constexpr bool isBplusMcTable()
 }
 
 /**
+ * returns true if the candidate is from a D0 table
+ */
+template <typename T>
+constexpr bool isDileptonCandidate()
+{
+  return std::is_same_v<std::decay_t<T>, CandidatesDileptonData::iterator> || std::is_same_v<std::decay_t<T>, CandidatesDileptonData::filtered_iterator>;
+}
+
+/**
+ * returns true if the particle is from a D0 MC table
+ */
+/*
+template <typename T>
+constexpr bool isDileptonMcCandidate()
+{
+  return std::is_same_v<std::decay_t<T>, CandidatesD0MCP::iterator> || std::is_same_v<std::decay_t<T>, CandidatesD0MCP::filtered_iterator>;
+}
+*/
+/**
+ * returns true if the table is a D0 table
+ */
+template <typename T>
+constexpr bool isDileptonTable()
+{
+
+  return isDileptonCandidate<typename T::iterator>() || isDileptonCandidate<typename T::filtered_iterator>();
+}
+
+/**
+ * returns true if the table is a D0 MC table
+ */
+/*
+template <typename T>
+constexpr bool isDileptonMcTable()
+{
+  return isD0McCandidate<typename T::iterator>() || isD0McCandidate<typename T::filtered_iterator>();
+}
+*/
+/**
+ * returns true if the candidate is from a Lc table
+ */
+
+/**
  * returns true if the candidate is from a HF table
  * * @param candidate candidate that is being checked
  */
@@ -168,6 +211,8 @@ constexpr bool isHFCandidate()
   } else if constexpr (isLcCandidate<T>()) {
     return true;
   } else if constexpr (isBplusCandidate<T>()) {
+    return true;
+  } else if constexpr (isDileptonCandidate<T>()) {
     return true;
   } else {
     return false;
@@ -205,6 +250,8 @@ constexpr bool isHFTable()
   } else if constexpr (isLcCandidate<typename T::iterator>() || isLcCandidate<typename T::filtered_iterator>()) {
     return true;
   } else if constexpr (isBplusCandidate<typename T::iterator>() || isBplusCandidate<typename T::filtered_iterator>()) {
+    return true;
+  } else if constexpr (isDileptonCandidate<typename T::iterator>() || isDileptonCandidate<typename T::filtered_iterator>()) {
     return true;
   } else {
     return false;
@@ -289,6 +336,7 @@ template <typename T, typename U, typename V>
 bool isDaughterTrack(T& track, U& candidate, V& tracks)
 {
 
+  // Todo: Change so just Id are checked
   if constexpr (isD0Candidate<U>()) {
     if (candidate.template prong0_as<V>().globalIndex() == track.globalIndex() || candidate.template prong1_as<V>().globalIndex() == track.globalIndex()) {
       return true;
@@ -303,6 +351,12 @@ bool isDaughterTrack(T& track, U& candidate, V& tracks)
     }
   } else if constexpr (isBplusCandidate<U>()) {
     if (candidate.template prong0_as<o2::aod::HfCand2Prong>().template prong0_as<V>().globalIndex() == track.globalIndex() || candidate.template prong0_as<o2::aod::HfCand2Prong>().template prong1_as<V>().globalIndex() == track.globalIndex() || candidate.template prong1_as<V>().globalIndex() == track.globalIndex()) {
+      return true;
+    } else {
+      return false;
+    }
+  } else if constexpr (isDileptonCandidate<U>()) {
+    if (candidate.template prong0_as<V>().globalIndex() == track.globalIndex() || candidate.template prong1_as<V>().globalIndex() == track.globalIndex()) {
       return true;
     } else {
       return false;
@@ -338,8 +392,8 @@ bool isDaughterParticle(T const& particle, U const& particles, int globalIndex)
  * @param candidate HF candidate that is being checked
  * @param table the table to be sliced
  */
-template <typename T, typename U, typename V, typename M, typename N>
-auto slicedPerCandidate(T const& table, U const& candidate, V const& perD0Candidate, M const& perLcCandidate, N const& perBplusCandidate)
+template <typename T, typename U, typename V, typename M, typename N, typename O>
+auto slicedPerCandidate(T const& table, U const& candidate, V const& perD0Candidate, M const& perLcCandidate, N const& perBplusCandidate, O const& perDileptonCandidate)
 {
 
   if constexpr (isD0Candidate<U>()) {
@@ -348,6 +402,8 @@ auto slicedPerCandidate(T const& table, U const& candidate, V const& perD0Candid
     return table.sliceBy(perLcCandidate, candidate.globalIndex());
   } else if constexpr (isBplusCandidate<U>()) {
     return table.sliceBy(perBplusCandidate, candidate.globalIndex());
+  } else if constexpr (isDileptonCandidate<U>()) {
+    return table.sliceBy(perDileptonCandidate, candidate.globalIndex());
   } else {
     return table;
   }
@@ -359,12 +415,12 @@ int getCandidatePDG(T const& candidate)
 
   if constexpr (isD0Candidate<T>() || isD0McCandidate<T>()) {
     return static_cast<int>(o2::constants::physics::Pdg::kD0);
-  }
-  if constexpr (isLcCandidate<T>() || isLcMcCandidate<T>()) {
+  } else if constexpr (isLcCandidate<T>() || isLcMcCandidate<T>()) {
     return static_cast<int>(o2::constants::physics::Pdg::kLambdaCPlus);
-  }
-  if constexpr (isBplusCandidate<T>() || isBplusMcCandidate<T>()) {
+  } else if constexpr (isBplusCandidate<T>() || isBplusMcCandidate<T>()) {
     return static_cast<int>(o2::constants::physics::Pdg::kBPlus);
+  } else if constexpr (isDileptonCandidate<T>()) {
+    return static_cast<int>(o2::constants::physics::Pdg::kJPsi);
   } else {
     return 0;
   }
@@ -376,12 +432,13 @@ int getTablePDG()
 
   if constexpr (isD0Table<T>() || isD0McTable<T>()) {
     return static_cast<int>(o2::constants::physics::Pdg::kD0);
-  }
-  if constexpr (isLcTable<T>() || isLcMcTable<T>()) {
+  } else if constexpr (isLcTable<T>() || isLcMcTable<T>()) {
     return static_cast<int>(o2::constants::physics::Pdg::kLambdaCPlus);
   }
   if constexpr (isBplusTable<T>() || isBplusMcTable<T>()) {
     return static_cast<int>(o2::constants::physics::Pdg::kBPlus);
+  } else if constexpr (isDileptonTable<T>()) {
+    return static_cast<float>(o2::constants::physics::MassJPsi);
   } else {
     return 0;
   }
@@ -413,9 +470,10 @@ float getTablePDGMass()
   }
   if constexpr (isLcTable<T>() || isLcMcTable<T>()) {
     return static_cast<float>(o2::constants::physics::MassLambdaCPlus);
-  }
-  if constexpr (isBplusTable<T>() || isBplusMcTable<T>()) {
+  } else if constexpr (isBplusTable<T>() || isBplusMcTable<T>()) {
     return static_cast<float>(o2::constants::physics::MassBPlus);
+  } else if constexpr (isDileptonTable<T>()) {
+    return static_cast<int>(o2::constants::physics::Pdg::kJPsi);
   } else {
     return 0.;
   }

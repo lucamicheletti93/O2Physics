@@ -34,6 +34,7 @@ struct RhoEstimatorTask {
   Produces<aod::BkgD0Rhos> rhoD0Table;
   Produces<aod::BkgLcRhos> rhoLcTable;
   Produces<aod::BkgBplusRhos> rhoBplusTable;
+  Produces<aod::BkgDileptonRhos> rhoDileptonTable;
 
   Configurable<float> trackPtMin{"trackPtMin", 0.15, "minimum track pT"};
   Configurable<float> trackPtMax{"trackPtMax", 1000.0, "maximum track pT"};
@@ -42,12 +43,6 @@ struct RhoEstimatorTask {
   Configurable<float> trackPhiMin{"trackPhiMin", -999, "minimum track phi"};
   Configurable<float> trackPhiMax{"trackPhiMax", 999, "maximum track phi"};
   Configurable<std::string> trackSelections{"trackSelections", "globalTracks", "set track selections"};
-
-  Configurable<int> selectionFlagD0{"selectionFlagD0", 1, "Selection Flag for D0"};
-  Configurable<int> selectionFlagD0bar{"selectionFlagD0bar", 1, "Selection Flag for D0bar"};
-  Configurable<int> selectionFlagLcToPKPi{"selectionFlagLcToPKPi", 1, "Selection Flag for Lc->PKPi"};
-  Configurable<int> selectionFlagLcToPiPK{"selectionFlagLcToPiPK", 1, "Selection Flag for Lc->PiPK"};
-  Configurable<int> selectionFlagBplus{"selectionFlagBplus", 1, "Selection Flag for B+"};
 
   Configurable<float> bkgjetR{"bkgjetR", 0.2, "jet resolution parameter for determining background density"};
   Configurable<float> bkgEtaMin{"bkgEtaMin", -0.9, "minimim pseudorapidity for determining background density"};
@@ -122,6 +117,19 @@ struct RhoEstimatorTask {
     }
   }
   PROCESS_SWITCH(RhoEstimatorTask, processBplusCollisions, "Fill rho tables for collisions with Bplus candidates", false);
+
+  void processDileptonCollisions(JetCollision const& collision, soa::Filtered<JetTracks> const& tracks, CandidatesDileptonData const& candidates)
+  {
+    inputParticles.clear();
+    for (auto& candidate : candidates) {
+      inputParticles.clear();
+      jetfindingutilities::analyseTracks(inputParticles, tracks, trackSelection, std::optional{candidate});
+
+      auto [rho, rhoM] = bkgSub.estimateRhoAreaMedian(inputParticles, doSparse);
+      rhoDileptonTable(candidate.globalIndex(), rho, rhoM);
+    }
+  }
+  PROCESS_SWITCH(RhoEstimatorTask, processDileptonCollisions, "Fill rho tables for collisions with Dilepton candidates", false);
 };
 
 WorkflowSpec defineDataProcessing(ConfigContext const& cfgc) { return WorkflowSpec{adaptAnalysisTask<RhoEstimatorTask>(cfgc, TaskName{"estimator-rho"})}; }

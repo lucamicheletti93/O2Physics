@@ -740,6 +740,8 @@ struct AnalysisSameEventPairing {
   Produces<aod::DimuonsAll> dimuonAllList;
   Produces<aod::DileptonFlow> dileptonFlowList;
   Produces<aod::DileptonsInfo> dileptonInfoList;
+  Produces<aod::DileptonsTrackInfo> dileptonTrackInfoList;
+  Produces<aod::DileptonsFwdTrackInfo> dileptonFwdTrackInfoList;
   float mMagField = 0.0;
   o2::parameters::GRPMagField* grpmag = nullptr;
   o2::base::MatLayerCylSet* lut = nullptr;
@@ -986,6 +988,8 @@ struct AnalysisSameEventPairing {
     dileptonList.reserve(1);
     dileptonExtraList.reserve(1);
     dileptonInfoList.reserve(1);
+    dileptonTrackInfoList.reserve(1);
+    dileptonFwdTrackInfoList.reserve(1);
     if (fConfigFlatTables.value) {
       dimuonAllList.reserve(1);
     }
@@ -1021,6 +1025,12 @@ struct AnalysisSameEventPairing {
       dileptonList(event, VarManager::fgValues[VarManager::kMass], VarManager::fgValues[VarManager::kPt], VarManager::fgValues[VarManager::kEta], VarManager::fgValues[VarManager::kPhi], t1.sign() + t2.sign(), dileptonFilterMap, dileptonMcDecision);
       if constexpr ((TPairType == pairTypeMuMu && ((TTrackFillMap & VarManager::ObjTypes::ReducedMuonCollInfo) > 0)) || (TPairType == pairTypeEE && ((TTrackFillMap & VarManager::ObjTypes::ReducedTrackCollInfo) > 0))) {
         dileptonInfoList(t1.collisionId(), event.posX(), event.posY(), event.posZ());
+        if (TPairType == pairTypeMuMu) {
+          dileptonFwdTrackInfoList(t1.trackId(), t2.trackId());
+        }
+        if (TPairType == pairTypeEE) {
+          dileptonTrackInfoList(t1.trackId(), t2.trackId());
+        }
       }
 
       constexpr bool trackHasCov = ((TTrackFillMap & VarManager::ObjTypes::TrackCov) > 0 || (TTrackFillMap & VarManager::ObjTypes::ReducedTrackBarrelCov) > 0);

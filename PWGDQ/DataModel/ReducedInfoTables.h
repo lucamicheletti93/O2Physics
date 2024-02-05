@@ -124,6 +124,7 @@ DECLARE_SOA_COLUMN(DcaXY, dcaXY, float);               //!
 DECLARE_SOA_COLUMN(DcaZ, dcaZ, float);                 //!
 DECLARE_SOA_COLUMN(DetectorMap, detectorMap, uint8_t); //! Detector map: see enum DetectorMapEnum
 DECLARE_SOA_INDEX_COLUMN(Collision, collision);        //!
+DECLARE_SOA_INDEX_COLUMN(Track, track);                //!
 DECLARE_SOA_DYNAMIC_COLUMN(HasITS, hasITS,             //! Flag to check if track has a ITS match
                            [](uint8_t detectorMap) -> bool { return detectorMap & o2::aod::track::ITS; });
 DECLARE_SOA_DYNAMIC_COLUMN(HasTPC, hasTPC, //! Flag to check if track has a TPC match
@@ -185,7 +186,7 @@ DECLARE_SOA_TABLE(ReducedTracksBarrelPID, "AOD", "RTBARRELPID", //!
 
 // barrel collision information (joined with ReducedTracks) allowing to connect different tables (cross PWGs)
 DECLARE_SOA_TABLE(ReducedTracksBarrelInfo, "AOD", "RTBARRELINFO",
-                  reducedtrack::CollisionId, collision::PosX, collision::PosY, collision::PosZ);
+                  reducedtrack::CollisionId, collision::PosX, collision::PosY, collision::PosZ, reducedtrack::TrackId);
 
 using ReducedTrack = ReducedTracks::iterator;
 using ReducedTrackBarrel = ReducedTracksBarrel::iterator;
@@ -304,6 +305,7 @@ DECLARE_SOA_COLUMN(FwdDcaX, fwdDcaX, float);       //!  Impact parameter in X of
 DECLARE_SOA_COLUMN(FwdDcaY, fwdDcaY, float);       //!  Impact parameter in Y of forward track to the primary vertex
 DECLARE_SOA_COLUMN(IsAmbiguous, isAmbiguous, int); //!
 DECLARE_SOA_INDEX_COLUMN(Collision, collision);    //!
+DECLARE_SOA_INDEX_COLUMN(FwdTrack, track);         //!
 DECLARE_SOA_DYNAMIC_COLUMN(Px, px,                 //!
                            [](float pt, float phi) -> float { return pt * std::cos(phi); });
 DECLARE_SOA_DYNAMIC_COLUMN(Py, py, //!
@@ -352,7 +354,7 @@ DECLARE_SOA_TABLE(ReducedMuonsCov, "AOD", "RTMUONCOV",
 
 // Muon collision information (joined with ReducedMuons) allowing to connect different tables (cross PWGs)
 DECLARE_SOA_TABLE(ReducedMuonsInfo, "AOD", "RTMUONINFO",
-                  reducedmuon::CollisionId, collision::PosX, collision::PosY, collision::PosZ);
+                  reducedmuon::CollisionId, collision::PosX, collision::PosY, collision::PosZ, reducedmuon::FwdTrackId);
 
 // iterators
 using ReducedMuon = ReducedMuons::iterator;
@@ -388,6 +390,10 @@ namespace dilepton_track_index
 {
 DECLARE_SOA_INDEX_COLUMN_FULL(Index0, index0, int, ReducedMuons, "_0"); //! Index to first prong
 DECLARE_SOA_INDEX_COLUMN_FULL(Index1, index1, int, ReducedMuons, "_1"); //! Index to second prong
+DECLARE_SOA_INDEX_COLUMN_FULL(Prong0, prong0, int, Tracks, "_0");       //! Index to first prong
+DECLARE_SOA_INDEX_COLUMN_FULL(Prong1, prong1, int, Tracks, "_1");       //! Index to second prong
+DECLARE_SOA_INDEX_COLUMN_FULL(ProngFwd0, prongFwd0, int, FwdTracks, "_0"); //! Index to first prong
+DECLARE_SOA_INDEX_COLUMN_FULL(ProngFwd1, prongFwd1, int, FwdTracks, "_1"); //! Index to second prong
 DECLARE_SOA_COLUMN(Pt1, pt1, float);                                    //! Pt of the first prong
 DECLARE_SOA_COLUMN(Eta1, eta1, float);                                  //! Eta of the first prong
 DECLARE_SOA_COLUMN(Phi1, phi1, float);                                  //! Phi of the first prong
@@ -480,6 +486,7 @@ DECLARE_SOA_DYNAMIC_COLUMN(Rap, rap, //!
 } // namespace reducedpair
 
 DECLARE_SOA_TABLE(Dileptons, "AOD", "RTDILEPTON", //!
+                  o2::soa::Index<>,
                   reducedpair::ReducedEventId,
                   reducedpair::Mass,
                   reducedpair::Pt, reducedpair::Eta, reducedpair::Phi, reducedpair::Sign,
@@ -496,6 +503,12 @@ DECLARE_SOA_TABLE(DileptonsExtra, "AOD", "RTDILEPTONEXTRA", //!
                   reducedpair::Tauz,
                   reducedpair::Lz,
                   reducedpair::Lxy);
+
+DECLARE_SOA_TABLE(DileptonsTrackInfo, "AOD", "RTDILTRKINFO", //!
+                  dilepton_track_index::Prong0Id, dilepton_track_index::Prong1Id);
+
+DECLARE_SOA_TABLE(DileptonsFwdTrackInfo, "AOD", "RTDILFWDINFO", //!
+                  dilepton_track_index::ProngFwd0Id, dilepton_track_index::ProngFwd1Id);
 
 DECLARE_SOA_TABLE(DileptonsFlow, "AOD", "RTDILEPTONFLOW", //!
                   reducedpair::U2Q2,

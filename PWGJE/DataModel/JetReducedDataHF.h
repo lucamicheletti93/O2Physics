@@ -54,6 +54,26 @@ DECLARE_SOA_TABLE(StoredJD0PIds, "AOD", "JD0PIds",
                   jd0indices::JMcParticleId,
                   o2::soa::Marker<1>);
 
+namespace jdileptonindices
+{
+DECLARE_SOA_INDEX_COLUMN(JCollision, collision);
+DECLARE_SOA_INDEX_COLUMN_FULL(Prong0, prong0, int, JTracks, "_0"); //! Index to first prong
+DECLARE_SOA_INDEX_COLUMN_FULL(Prong1, prong1, int, JTracks, "_1"); //! Index to second prong
+DECLARE_SOA_INDEX_COLUMN(JMcCollision, mcCollision);
+DECLARE_SOA_INDEX_COLUMN(JMcParticle, mcParticle);
+} // namespace jdileptonindices
+
+DECLARE_SOA_TABLE(JDileptonIds, "AOD1", "JDileptonIds",
+                  jdileptonindices::JCollisionId,
+                  jdileptonindices::Prong0Id,
+                  jdileptonindices::Prong1Id);
+
+DECLARE_SOA_TABLE(StoredJDileptonIds, "AOD", "JDileptonIds",
+                  jdileptonindices::JCollisionId,
+                  jdileptonindices::Prong0Id,
+                  jdileptonindices::Prong1Id,
+                  o2::soa::Marker<1>);
+
 } // namespace o2::aod
 
 #endif // PWGJE_DATAMODEL_JETREDUCEDDATAHF_H_

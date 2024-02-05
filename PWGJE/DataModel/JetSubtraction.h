@@ -24,6 +24,7 @@
 #include "PWGJE/DataModel/JetReducedData.h"
 #include "PWGHF/DataModel/DerivedTables.h"
 #include "PWGHF/DataModel/CandidateReconstructionTables.h"
+#include "PWGDQ/DataModel/ReducedInfoTables.h"
 
 namespace o2::aod
 {
@@ -48,6 +49,11 @@ namespace bkglc
 {
 DECLARE_SOA_INDEX_COLUMN_FULL(Candidate, candidate, int, HfCand3Prong, "_0");
 } // namespace bkglc
+
+namespace bkgdilepton
+{
+DECLARE_SOA_INDEX_COLUMN_FULL(Candidate, candidate, int, Dileptons, "_0");
+} // namespace bkgdilepton
 
 namespace bkgbplus
 {
@@ -75,6 +81,12 @@ DECLARE_SOA_TABLE(BkgLcRhos, "AOD", "BkgLcRho",
 DECLARE_SOA_TABLE(BkgBplusRhos, "AOD", "BkgBPlRho",
                   o2::soa::Index<>,
                   bkgbplus::CandidateId,
+                  bkgrho::Rho,
+                  bkgrho::RhoM);
+
+DECLARE_SOA_TABLE(BkgDileptonRhos, "AOD", "BkgDilRho",
+                  o2::soa::Index<>,
+                  bkgdilepton::CandidateId,
                   bkgrho::Rho,
                   bkgrho::RhoM);
 
@@ -155,6 +167,21 @@ DECLARE_SOA_TABLE(JTrackBplusSubs, "AOD", "JTrackBPlSubs",
                   jtracksub::P<jtracksub::Pt, jtracksub::Eta>);
 
 using JTrackBplusSub = JTrackBplusSubs::iterator;
+
+DECLARE_SOA_TABLE(JTrackDileptonSubs, "AOD", "JTrackDilSubs",
+                  o2::soa::Index<>,
+                  bkgdilepton::CandidateId,
+                  jtracksub::Pt,
+                  jtracksub::Eta,
+                  jtracksub::Phi,
+                  jtracksub::Energy,
+                  jtracksub::TrackSel,
+                  jtracksub::Px<jtracksub::Pt, jtracksub::Phi>,
+                  jtracksub::Py<jtracksub::Pt, jtracksub::Phi>,
+                  jtracksub::Pz<jtracksub::Pt, jtracksub::Eta>,
+                  jtracksub::P<jtracksub::Pt, jtracksub::Eta>);
+
+using JTrackDileptonSub = JTrackDileptonSubs::iterator;
 
 } // namespace o2::aod
 

@@ -34,6 +34,7 @@ struct eventWiseConstituentSubtractorTask {
   Produces<aod::JTrackD0Subs> trackSubtractedD0Table;
   Produces<aod::JTrackLcSubs> trackSubtractedLcTable;
   Produces<aod::JTrackBplusSubs> trackSubtractedBplusTable;
+  Produces<aod::JTrackDileptonSubs> trackSubtractedDileptonTable;
 
   Configurable<float> trackPtMin{"trackPtMin", 0.15, "minimum track pT"};
   Configurable<float> trackPtMax{"trackPtMax", 1000.0, "maximum track pT"};
@@ -42,12 +43,6 @@ struct eventWiseConstituentSubtractorTask {
   Configurable<float> trackPhiMin{"trackPhiMin", -999, "minimum track phi"};
   Configurable<float> trackPhiMax{"trackPhiMax", 999, "maximum track phi"};
   Configurable<std::string> trackSelections{"trackSelections", "globalTracks", "set track selections"};
-
-  Configurable<int> selectionFlagD0{"selectionFlagD0", 1, "Selection Flag for D0"};
-  Configurable<int> selectionFlagD0bar{"selectionFlagD0bar", 1, "Selection Flag for D0bar"};
-  Configurable<int> selectionFlagLcToPKPi{"selectionFlagLcToPKPi", 1, "Selection Flag for Lc->PKPi"};
-  Configurable<int> selectionFlagLcToPiPK{"selectionFlagLcToPiPK", 1, "Selection Flag for Lc->PiPK"};
-  Configurable<int> selectionFlagBplus{"selectionFlagBplus", 1, "Selection Flag for B+"};
 
   Configurable<float> alpha{"alpha", 1.0, "exponent of transverse momentum in calculating the distance measure between pairs"};
   Configurable<float> rMax{"rMax", 0.24, "maximum distance of subtraction"};
@@ -74,6 +69,7 @@ struct eventWiseConstituentSubtractorTask {
   Preslice<aod::BkgD0Rhos> perD0Candidate = aod::bkgd0::candidateId;
   Preslice<aod::BkgLcRhos> perLcCandidate = aod::bkglc::candidateId;
   Preslice<aod::BkgBplusRhos> perBplusCandidate = aod::bkgbplus::candidateId;
+  Preslice<aod::BkgDileptonRhos> perDileptonCandidate = aod::bkgdilepton::candidateId;
 
   template <typename T, typename U, typename V, typename M>
   void analyseHF(T const& tracks, U const& candidates, V const& bkgRhos, M& trackSubtractedTable)
@@ -81,7 +77,7 @@ struct eventWiseConstituentSubtractorTask {
 
     for (auto& candidate : candidates) {
 
-      auto const bkgRhosSliced = jethfutilities::slicedPerCandidate(bkgRhos, candidate, perD0Candidate, perLcCandidate, perBplusCandidate);
+      auto const bkgRhosSliced = jethfutilities::slicedPerCandidate(bkgRhos, candidate, perD0Candidate, perLcCandidate, perBplusCandidate, perDileptonCandidate);
       auto const bkgRho = bkgRhosSliced.iteratorAt(0);
 
       inputParticles.clear();
@@ -128,6 +124,12 @@ struct eventWiseConstituentSubtractorTask {
     analyseHF(tracks, candidates, bkgRhos, trackSubtractedBplusTable);
   }
   PROCESS_SWITCH(eventWiseConstituentSubtractorTask, processBplusCollisions, "Fill table of subtracted tracks for collisions with Bplus candidates", false);
+
+    void processDileptonCollisions(JetCollision const& collision, aod::BkgDileptonRhos const& bkgRhos, soa::Filtered<JetTracks> const& tracks, CandidatesDileptonData const& candidates)
+  {
+    analyseHF(tracks, candidates, bkgRhos, trackSubtractedDileptonTable);
+  }
+  PROCESS_SWITCH(eventWiseConstituentSubtractorTask, processDileptonCollisions, "Fill table of subtracted tracks for collisions with Dilepton candidates", false);
 };
 
 WorkflowSpec defineDataProcessing(ConfigContext const& cfgc) { return WorkflowSpec{adaptAnalysisTask<eventWiseConstituentSubtractorTask>(cfgc, TaskName{"subtractor-eventwiseconstituent"})}; }
