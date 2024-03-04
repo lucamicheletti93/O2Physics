@@ -45,6 +45,9 @@
 #include "Common/DataModel/TrackSelectionTables.h"
 #include "Common/DataModel/Centrality.h"
 
+#include "Common/Core/EventPlaneHelper.h"
+#include "Common/DataModel/Qvectors.h"
+
 using std::complex;
 using std::cout;
 using std::endl;

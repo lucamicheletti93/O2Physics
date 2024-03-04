@@ -48,6 +48,9 @@
 #include "DetectorsBase/Propagator.h"
 #include "Common/Core/trackUtilities.h"
 
+#include "Common/Core/EventPlaneHelper.h"
+#include "Common/DataModel/Qvectors.h"
+
 #include "Math/SMatrix.h"
 #include "ReconstructionDataFormats/TrackFwd.h"
 #include "DCAFitter/FwdDCAFitterN.h"
@@ -1138,6 +1141,7 @@ void VarManager::FillEvent(T const& event, float* values)
     values[kQ4X0C] = event.q4x0c();
     values[kQ4Y0C] = event.q4y0c();
     values[kR2SP] = (event.q2x0b() * event.q2x0c() + event.q2y0b() * event.q2y0c());
+    //values[kR2SP] = (event.q2x0b() * event.q2y0c() + event.q2y0b() * event.q2x0c());
     values[kR3SP] = (event.q3x0b() * event.q3x0c() + event.q3y0b() * event.q3y0c());
     if (event.q2y0b() * event.q2y0c() != 0.0) {
       values[kR2EP] = TMath::Cos(2 * (getEventPlane(2, event.q2x0b(), event.q2y0b()) - getEventPlane(2, event.q2x0c(), event.q2y0c())));
