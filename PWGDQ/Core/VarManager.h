@@ -1599,6 +1599,12 @@ void VarManager::FillEvent(T const& event, float* values)
     values[kQ4X0C] = -999;
     values[kQ4Y0C] = -999;
 
+    if constexpr ((fillMap & CollisionQvectCentr) > 0) {
+      values[kQ2X0A] = event.qvecBAllRe();
+      values[kQ2Y0A] = event.qvecBAllIm();
+      values[kMultA] = event.nTrkBAll();
+    }
+
     EventPlaneHelper epHelper;
     float Psi2A = epHelper.GetEventPlane(values[kQ2X0A], values[kQ2Y0A], 2);
     float Psi2APOS = epHelper.GetEventPlane(values[kQ2X0APOS], values[kQ2Y0APOS], 2);
