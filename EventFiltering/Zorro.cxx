@@ -311,3 +311,4 @@ void Zorro::setupHelpers(int64_t timestamp)
   }
   mAccountedBCranges.resize(mBCranges.size(), false);
 }
+ 
