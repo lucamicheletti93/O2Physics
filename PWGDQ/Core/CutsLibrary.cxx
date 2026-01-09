@@ -3782,6 +3782,73 @@ AnalysisCut* o2::aod::dqcuts::GetAnalysisCut(const char* cutName)
     return cut;
   }
 
+  if (!nameStr.compare("eventSel8TriggerZNAZNC")) {
+    cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsTriggerZNAZNC, 0.5, 1.5);
+    return cut;
+  }
+
+  if (!nameStr.compare("eventSel8TriggerZNAZNCNoPileUp")) {
+    cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsTriggerZNAZNC, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsNoSameBunch, 0.5, 1.5);
+    return cut;
+  }
+
+  if (!nameStr.compare("eventSel8Ft0CCentral")) {
+    cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsFt0Central, 0.5, 1.5);
+    return cut;
+  }
+
+  if (!nameStr.compare("eventSel8Ft0CSemiCentral")) {
+    cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsFt0SemiCentral, 0.5, 1.5);
+    return cut;
+  }
+
+  if (!nameStr.compare("eventSel8Ft0CAllCentral")) {
+    cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsFt0AllCentral, 0.5, 1.5);
+    return cut;
+  }
+
+  if (!nameStr.compare("eventLightIonQuality")) {
+    cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsFt0AllCentral, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsNoSameBunch, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsGoodZvtxFT0vsPV, 0.5, 1.5);
+    return cut;
+  }
+
+  if (!nameStr.compare("eventLightIonNoPileUp")) {
+    cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsFt0AllCentral, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsNoSameBunch, 0.5, 1.5);
+    return cut;
+  }
+
+  if (!nameStr.compare("eventSel8Ft0CCentralTriggerZNAZNC")) {
+    cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsFt0Central, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsTriggerZNAZNC, 0.5, 1.5);
+    return cut;
+  }
+
+  if (!nameStr.compare("eventSel8Ft0CSemiCentralTriggerZNAZNC")) {
+    cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsFt0SemiCentral, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsTriggerZNAZNC, 0.5, 1.5);
+    return cut;
+  }
+
+  if (!nameStr.compare("eventSel8Ft0CAllCentralTriggerZNAZNC")) {
+    cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsFt0AllCentral, 0.5, 1.5);
+    cut->AddCut(VarManager::kIsTriggerZNAZNC, 0.5, 1.5);
+    return cut;
+  }
+
   if (!nameStr.compare("eventSel8NoSameBunch")) {
     cut->AddCut(VarManager::kIsSel8, 0.5, 1.5);
     cut->AddCut(VarManager::kIsNoSameBunch, 0.5, 1.5);

@@ -35,6 +35,7 @@
 #include "PWGDQ/DataModel/ReducedInfoTables.h"
 
 #include "Common/CCDB/TriggerAliases.h"
+#include "Common/CCDB/ctpRateFetcher.h"
 #include "Common/Core/TableHelper.h"
 #include "Common/Core/Zorro.h"
 #include "Common/DataModel/Centrality.h"
@@ -54,6 +55,7 @@
 #include "DataFormatsITSMFT/ROFRecord.h"
 #include "DataFormatsParameters/GRPMagField.h"
 #include "DataFormatsParameters/GRPObject.h"
+#include "DataFormatsParameters/GRPLHCIFData.h"
 #include "DetectorsBase/GeometryManager.h"
 #include "DetectorsBase/Propagator.h"
 #include "DetectorsVertexing/PVertexerParams.h"
@@ -119,7 +121,7 @@ using MyMuonsWithCov = soa::Join<aod::FwdTracks, aod::FwdTracksCov, aod::FwdTrac
 using MyMuonsRealignWithCov = soa::Join<aod::FwdTracksReAlign, aod::FwdTrksCovReAlign, aod::FwdTracksDCA>;
 using MyMuonsColl = soa::Join<aod::FwdTracks, aod::FwdTracksDCA, aod::FwdTrkCompColls>;
 using MyMuonsCollWithCov = soa::Join<aod::FwdTracks, aod::FwdTracksCov, aod::FwdTracksDCA, aod::FwdTrkCompColls>;
-using MyBCs = soa::Join<aod::BCs, aod::Timestamps, aod::Run3MatchedToBCSparse, aod::BcSels>;
+using MyBCs = soa::Join<aod::BCs, aod::Timestamps, aod::Run3MatchedToBCSparse, aod::BcSels, aod::MatchedBCCollisionsSparseMulti>;
 using ExtBCs = soa::Join<aod::BCs, aod::Timestamps, aod::MatchedBCCollisionsSparseMulti>;
 
 // Declaration of various bit maps containing information on which tables are included in a Join
@@ -154,6 +156,8 @@ constexpr static uint32_t gkMFTCovFillMap = VarManager::ObjTypes::TrackMFT | Var
 // Enum containing the ordering of statistics histograms to be written in the QA file
 enum SkimStatsHists {
   kStatsEvent = 0,
+  kStatsBcs,
+  kStatsPileup,
   kStatsTracks,
   kStatsMuons,
   kStatsOrphanTracks,
@@ -336,6 +340,9 @@ struct TableMaker {
   Preslice<MyBarrelTracksWithCov> presliceWithCov = aod::track::collisionId;
   Partition<MyBarrelTracksWithCov> tracksPosWithCov = (((aod::track::flags & static_cast<uint32_t>(o2::aod::track::PVContributor)) == static_cast<uint32_t>(o2::aod::track::PVContributor)) && (aod::track::tgl > static_cast<float>(0.05)));
   Partition<MyBarrelTracksWithCov> tracksNegWithCov = (((aod::track::flags & static_cast<uint32_t>(o2::aod::track::PVContributor)) == static_cast<uint32_t>(o2::aod::track::PVContributor)) && (aod::track::tgl < static_cast<float>(-0.05)));
+
+  ctpRateFetcher mRateFetcher;
+  parameters::GRPLHCIFData* mLHCIFdata = nullptr;
 
   struct {
     std::map<int32_t, float> oMeanTimeShortA;
@@ -567,7 +574,9 @@ struct TableMaker {
     }
 
     // Create statistics histograms which will be stored in the QA output
-    // Event statistics: kStatsEvent
+    // Event statistics: kStatsEvent 
+    // BC statistics: kStatsBcs
+    // Pileup statistics: kStatsPileup
     // Track statistics: kStatsTracks
     // Muon statistics: kStatsMuons
     // Orphan track statistics: kStatsOrphanTracks
@@ -586,6 +595,17 @@ struct TableMaker {
     }
     histEvents->GetYaxis()->SetBinLabel(o2::aod::evsel::kNsel + 1, "Total");
     fStatsList->AddAt(histEvents, kStatsEvent);
+
+    std::vector<TString> bcLabels{"sel8", "sel8 & Cent", "sel8 & Scent", "sel8 & (Cent | Scent)", "sel8 & (ZNA & ZNC)"};
+    TH2D* histBcs = new TH2D("BcStats", "Bc statistics", bcLabels.size(), -0.5, bcLabels.size() - 0.5, 3000, 0, 0.3);
+    ib = 1;
+    for (auto label = bcLabels.begin(); label != bcLabels.end(); label++, ib++) {
+      histBcs->GetXaxis()->SetBinLabel(ib, (*label).Data());
+    }
+    fStatsList->AddAt(histBcs, kStatsBcs);
+
+    TH1D* histPileup = new TH1D("PileupStats", "Pileup statistics", 3000, 0, 0.3);
+    fStatsList->AddAt(histPileup, kStatsPileup);
 
     // Track statistics: one bin for each track selection and 5 bins for V0 tags (gamma, K0s, Lambda, anti-Lambda, Omega)
     TH1D* histTracks = new TH1D("TrackStats", "Track statistics", fTrackCuts.size() + 5.0, -0.5, fTrackCuts.size() - 0.5 + 5.0);
@@ -793,6 +813,25 @@ struct TableMaker {
     } // end loop over collisions
   }
 
+  double calculateMu(const auto& bc)
+  {
+    auto& ccdbMgr = o2::ccdb::BasicCCDBManager::instance();
+
+    uint64_t timeStamp = bc.timestamp();
+    std::map<std::string, std::string> metadata;
+    mLHCIFdata = ccdbMgr.getSpecific<o2::parameters::GRPLHCIFData>("GLO/Config/GRPLHCIF", timeStamp, metadata);
+
+    auto bfilling = mLHCIFdata->getBunchFilling();
+    double nbc = bfilling.getFilledBCs().size();
+    double tvxRate = mRateFetcher.fetch(&ccdbMgr, timeStamp, bc.runNumber(), "T0VTX");
+    double nTriggersPerFilledBC = tvxRate / nbc / o2::constants::lhc::LHCRevFreq;
+    double mu = -std::log(1 - nTriggersPerFilledBC);
+
+    // LOG(info) << "Time stamp: " << timeStamp << " Run number: " << bc.runNumber() << " Number of filled BCs: " << nbc << " Trigger rate: " << tvxRate << " Mu: " << mu;
+
+    return mu;
+  }
+
   template <uint32_t TEventFillMap, uint32_t TTrackFillMap, typename TEvents, typename TBCs,
             typename TZdcs, typename TTrackAssoc, typename TTracks,
             typename TFt0s, typename TFv0as, typename TFdds>
@@ -819,6 +858,127 @@ struct TableMaker {
     float centFT0C = -1.0;
     float centFT0A = -1.0;
     float centFT0M = -1.0;
+
+    for (const auto& bc : bcs) {
+      double muTVX = calculateMu(bc);
+      (reinterpret_cast<TH1D*>(fStatsList->At(kStatsPileup)))->Fill(muTVX);
+      //(bc.has_ft0() ? TESTBIT(bc.ft0().triggerMask(), o2::ft0::Triggers::bitVertex) : 0) ? BIT(aod::evsel::kIsTriggerTVX) : 0;
+      //bc.has_ft0() ? (TESTBIT(selection, aod::evsel::kIsTriggerTVX) && TESTBIT(bc.ft0().triggerMask(), o2::ft0::Triggers::bitCen)) : 0;
+
+      //bool isMbTrigger = bc.has_ft0() ? (TESTBIT(bc.ft0().triggerMask(), o2::ft0::Triggers::bitVertex) && (TESTBIT(bc.ft0().triggerMask(), o2::ft0::Triggers::bitCen) || TESTBIT(bc.ft0().triggerMask(), o2::ft0::Triggers::bitSCen))) : 0;
+      
+      if (bc.has_ft0()) {
+        std::bitset<8> fT0Triggers = bc.ft0().triggerMask();
+        bool isTvx = fT0Triggers[o2::ft0::Triggers::bitVertex];
+        bool isSemiCentral = fT0Triggers[o2::ft0::Triggers::bitSCen];
+        bool isCentral = fT0Triggers[o2::ft0::Triggers::bitCen];
+
+        //bool isTriggerZNA = TESTBIT(bc.ft0().triggerMask(), aod::evsel::kIsBBZNA);
+        //bool isTriggerZNC = TESTBIT(bc.ft0().triggerMask(), aod::evsel::kIsBBZNC);
+
+        bool noBorder = bc.selection_bit(aod::evsel::kNoTimeFrameBorder) && bc.selection_bit(aod::evsel::kNoITSROFrameBorder);
+        //bool isTriggerTVX = bc.selection_bit(aod::evsel::kIsTriggerTVX);
+        bool isTriggerZNA = bc.selection_bit(aod::evsel::kIsBBZNA);
+        bool isTriggerZNC = bc.selection_bit(aod::evsel::kIsBBZNC);
+
+        /*
+        if (TESTBIT(ft0.triggerMask(), o2::fit::Triggers::bitVertex) &&
+          (TESTBIT(ft0.triggerMask(), o2::fit::Triggers::bitCen) ||
+           TESTBIT(ft0.triggerMask(), o2::fit::Triggers::bitSCen))) { // TVX & (TSC | TCE)
+        mapGlobalBcWithTSC[globalBC] = globalIndex;
+      }
+        */
+
+        /*double myTestCentFT0C = -999;
+        if(bc.has_collision()) {
+          auto myCollision = bc.template collision_as<TEvents>();
+          myTestCentFT0C = myCollision.centFT0C();
+        }*/
+
+        //if (isTvx && (isSemiCentral || isCentral)) {
+        //if (isTvx && isCentral) {
+
+        if (isTvx && noBorder) {
+          (reinterpret_cast<TH1D*>(fStatsList->At(kStatsBcs)))->Fill(0.0, muTVX);
+          if (isCentral) {
+            (reinterpret_cast<TH1D*>(fStatsList->At(kStatsBcs)))->Fill(1.0, muTVX);
+          }
+          if (isSemiCentral) {
+            (reinterpret_cast<TH1D*>(fStatsList->At(kStatsBcs)))->Fill(2.0, muTVX);
+          }
+          if (isCentral || isSemiCentral) {
+            (reinterpret_cast<TH1D*>(fStatsList->At(kStatsBcs)))->Fill(3.0, muTVX);
+          }
+          if (isTriggerZNA && isTriggerZNC) {
+            (reinterpret_cast<TH1D*>(fStatsList->At(kStatsBcs)))->Fill(4.0, muTVX);
+          }
+        }
+
+        /*(reinterpret_cast<TH1D*>(fStatsList->At(kStatsBcs)))->Fill(0.0);
+        if (isTvx && isSemiCentral) {
+          (reinterpret_cast<TH1D*>(fStatsList->At(kStatsBcs)))->Fill(1.0);
+          if (noBorder) {
+            (reinterpret_cast<TH1D*>(fStatsList->At(kStatsBcs)))->Fill(2.0);
+          }
+        }
+
+        if (isTvx && (isTriggerZNA && isTriggerZNC)) {
+          (reinterpret_cast<TH1D*>(fStatsList->At(kStatsBcs)))->Fill(3.0);
+          if (noBorder) {
+            (reinterpret_cast<TH1D*>(fStatsList->At(kStatsBcs)))->Fill(4.0);
+          }
+        }
+
+        //LOGP(info, "isTvx = {}, isSemiCentral = {}, isCentral = {}, isTriggerZNA = {}, isTriggerZNC = {} ==> [{}, {}]", isTvx, isSemiCentral, isCentral, isTriggerZNA, isTriggerZNC, isMbTrigger1, isMbTrigger2);
+
+        if (!bc.has_collisions()) {
+          continue;
+        } else {
+          LOGP(info, "BC has collisions!!!!!");
+          auto myColls = bc.collisions();
+          LOGP(info, "n. collisions = {}", myColls.size());
+        }*/
+        //auto myColls = bc.template collision_as<TEvents>();
+        //auto myColls = bc.collisions_as<collisions>(); // compatible collisions
+
+        //auto myColls = bc.template collision_as<TEvents>();
+
+        //auto myColls = bc.template collisions_as<collisions>();
+      }
+    }
+
+    /*if constexpr (!std::is_same_v<TFt0s, std::nullptr_t>) {
+      LOGP(info, "ft0s.size() = {}", ft0s.size());
+      for (const auto& ft0 : ft0s) {
+        auto bc = ft0.template bc_as<BCsWithTimestamps>();
+        if (bc.timestamp() == 0) {
+          continue;
+        }
+
+        std::bitset<8> fT0Triggers = ft0.triggerMask();
+        bool vertex = fT0Triggers[o2::ft0::Triggers::bitVertex];
+        bool sCentral = fT0Triggers[o2::ft0::Triggers::bitSCen];
+        bool central = fT0Triggers[o2::ft0::Triggers::bitCen];
+        LOGP(info, "vertex = {}, scentral = {}, central = {}", vertex, sCentral, central);
+
+
+
+        auto selection = bcselBuffer[bc.globalIndex()].selection;
+        if (bcPatternB[bc.globalBC() % nBCsPerOrbit] == 0) // skip non-colliding bcs
+          continue;
+
+        bool noBorder = TESTBIT(selection, aod::evsel::kNoTimeFrameBorder) && TESTBIT(selection, aod::evsel::kNoITSROFrameBorder);
+        bool isTriggerTVX = TESTBIT(selection, aod::evsel::kIsTriggerTVX);
+        bool isTriggerTCE = bc.has_ft0() ? (TESTBIT(selection, aod::evsel::kIsTriggerTVX) && TESTBIT(bc.ft0().triggerMask(), o2::ft0::Triggers::bitCen)) : 0;
+        bool isTriggerZNA = TESTBIT(selection, aod::evsel::kIsBBZNA);
+        bool isTriggerZNC = TESTBIT(selection, aod::evsel::kIsBBZNC);
+        bool isTriggerZEM = isTriggerZNA || isTriggerZNC;
+
+        LOGP(info, "noBorder = {}, isTriggerTVX = {}, isTriggerTCE = {}, isTriggerZNA = {}, isTriggerZNC = {}, isTriggerZEM = {}");
+
+
+      }
+    }*/
 
     for (const auto& collision : collisions) {
 
@@ -852,6 +1012,7 @@ struct TableMaker {
 
       VarManager::ResetValues(0, VarManager::kNEventWiseVariables);
       VarManager::FillBC(bc);
+      VarManager::FillBcForNorm(bc, ft0s, fv0as, fdds);
       VarManager::FillEvent<TEventFillMap>(collision); // extract event information and place it in the fValues array
       if constexpr ((TEventFillMap & VarManager::ObjTypes::Zdc) > 0) {
         if constexpr ((TEventFillMap & VarManager::ObjTypes::RapidityGapFilter) > 0) {
@@ -942,6 +1103,22 @@ struct TableMaker {
       (reinterpret_cast<TH2D*>(fStatsList->At(kStatsEvent)))->Fill(3.0, static_cast<float>(o2::aod::evsel::kNsel));
 
       fHistMan->FillHistClass("Event_AfterCuts", VarManager::fgValues);
+      /*if (bc.has_ft0()) {
+        std::bitset<8> fT0Triggers = bc.ft0().triggerMask();
+        bool isTvx = fT0Triggers[o2::ft0::Triggers::bitVertex];
+        bool isSemiCentral = fT0Triggers[o2::ft0::Triggers::bitSCen];
+        bool isCentral = fT0Triggers[o2::ft0::Triggers::bitCen];
+
+        bool noBorder = bc.selection_bit(aod::evsel::kNoTimeFrameBorder) && bc.selection_bit(aod::evsel::kNoITSROFrameBorder);
+        //bool isTriggerTVX = bc.selection_bit(aod::evsel::kIsTriggerTVX);
+        bool isTriggerZNA = bc.selection_bit(aod::evsel::kIsBBZNA);
+        bool isTriggerZNC = bc.selection_bit(aod::evsel::kIsBBZNC);
+
+        //if (noBorder && isTvx && isCentral) {fHistMan->FillHistClass("Event_AfterCuts", VarManager::fgValues);}
+        if (noBorder && isTvx && isSemiCentral) {fHistMan->FillHistClass("Event_AfterCuts", VarManager::fgValues);}
+        //if (noBorder && isTvx && (isCentral || isSemiCentral)) {fHistMan->FillHistClass("Event_AfterCuts", VarManager::fgValues);}
+        //if (noBorder && isTvx && (isTriggerZNA || isTriggerZNC)) {fHistMan->FillHistClass("Event_AfterCuts", VarManager::fgValues);}
+      }*/
 
       // create the event tables
       event(tag, bc.runNumber(), collision.posX(), collision.posY(), collision.posZ(), collision.numContrib(), collision.collisionTime(), collision.collisionTimeRes());
@@ -1587,7 +1764,7 @@ struct TableMaker {
   }
 
   // produce the full DQ skimmed data model typically for pp/p-Pb or UPC Pb-Pb (no centrality), subscribe to the DQ event filter (filter-pp or filter-PbPb)
-  void processPPWithFilter(MyEventsWithMultsAndFilter const& collisions, BCsWithTimestamps const& bcs,
+  void processPPWithFilter(MyEventsWithMultsAndFilter const& collisions, MyBCs const& bcs,
                            MyBarrelTracksWithCov const& tracksBarrel,
                            MyMuonsWithCov const& muons, MFTTracks const& mftTracks,
                            TrackAssoc const& trackAssocs, FwdTrackAssoc const& fwdTrackAssocs,
@@ -1605,14 +1782,14 @@ struct TableMaker {
   }
 
   // produce the muon-only DQ skimmed data model typically for pp/p-Pb or UPC Pb-Pb (no centrality), subscribe to the DQ event filter (filter-pp or filter-PbPb)
-  void processPPWithFilterMuonOnly(MyEventsWithMultsAndFilter const& collisions, BCsWithTimestamps const& bcs,
+  void processPPWithFilterMuonOnly(MyEventsWithMultsAndFilter const& collisions, MyBCs const& bcs,
                                    MyMuonsWithCov const& muons, FwdTrackAssoc const& fwdTrackAssocs)
   {
     fullSkimming<gkEventFillMapWithMultsAndEventFilter, 0u, gkMuonFillMapWithCov, 0u>(collisions, bcs, nullptr, nullptr, muons, nullptr, nullptr, fwdTrackAssocs, nullptr, nullptr, nullptr, nullptr, nullptr);
   }
 
   // produce the muon+mft DQ skimmed data model typically for pp/p-Pb or UPC Pb-Pb (no centrality), subscribe to the DQ event filter (filter-pp or filter-PbPb)
-  void processPPWithFilterMuonMFT(MyEventsWithMultsAndFilter const& collisions, BCsWithTimestamps const& bcs,
+  void processPPWithFilterMuonMFT(MyEventsWithMultsAndFilter const& collisions, MyBCs const& bcs,
                                   MyMuonsWithCov const& muons, MFTTracks const& mftTracks,
                                   FwdTrackAssoc const& fwdTrackAssocs, MFTTrackAssoc const& mftAssocs)
   {
@@ -1636,21 +1813,21 @@ struct TableMaker {
   }
 
   // produce the muon-only DQ skimmed data model typically for pp/p-Pb or UPC Pb-Pb (no centrality), meant to run on skimmed data
-  void processPPMuonOnly(MyEventsWithMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPPMuonOnly(MyEventsWithMults const& collisions, MyBCs const& bcs,
                          MyMuonsWithCov const& muons, FwdTrackAssoc const& fwdTrackAssocs)
   {
     fullSkimming<gkEventFillMapWithMults, 0u, gkMuonFillMapWithCov, 0u>(collisions, bcs, nullptr, nullptr, muons, nullptr, nullptr, fwdTrackAssocs, nullptr, nullptr, nullptr, nullptr, nullptr);
   }
 
   // produce the realigned muon-only DQ skimmed data model typically for pp/p-Pb or UPC Pb-Pb (no centrality), meant to run on skimmed data
-  void processPPRealignedMuonOnly(MyEventsWithMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPPRealignedMuonOnly(MyEventsWithMults const& collisions, MyBCs const& bcs,
                                   MyMuonsRealignWithCov const& muons, FwdTrackAssoc const& fwdTrackAssocs)
   {
     fullSkimming<gkEventFillMapWithMults, 0u, gkMuonRealignFillMapWithCov, 0u>(collisions, bcs, nullptr, nullptr, muons, nullptr, nullptr, fwdTrackAssocs, nullptr, nullptr, nullptr, nullptr, nullptr);
   }
 
   // produce the muon+mft DQ skimmed data model typically for pp/p-Pb or UPC Pb-Pb (no centrality), meant to run on skimmed data
-  void processPPMuonMFT(MyEventsWithMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPPMuonMFT(MyEventsWithMults const& collisions, MyBCs const& bcs,
                         MyMuonsWithCov const& muons, MFTTracks const& mftTracks,
                         FwdTrackAssoc const& fwdTrackAssocs, MFTTrackAssoc const& mftAssocs)
   {
@@ -1658,7 +1835,7 @@ struct TableMaker {
   }
 
   // Central barrel multiplicity estimation
-  void processPPMuonMFTWithMultsExtra(MyEventsWithMultsExtra const& collisions, BCsWithTimestamps const& bcs,
+  void processPPMuonMFTWithMultsExtra(MyEventsWithMultsExtra const& collisions, MyBCs const& bcs,
                                       MyMuonsWithCov const& muons, MFTTracks const& mftTracks,
                                       FwdTrackAssoc const& fwdTrackAssocs, MFTTrackAssoc const& mftAssocs)
   {
@@ -1666,7 +1843,7 @@ struct TableMaker {
   }
 
   // produce the full DQ skimmed data model typically for Pb-Pb (with centrality), no subscribtion to the DQ event filter
-  void processPbPb(MyEventsWithCentAndMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPbPb(MyEventsWithCentAndMults const& collisions, MyBCs const& bcs,
                    MyBarrelTracksWithCov const& tracksBarrel,
                    MyMuonsWithCov const& muons, MFTTracks const& mftTracks,
                    TrackAssoc const& trackAssocs, FwdTrackAssoc const& fwdTrackAssocs,
@@ -1676,7 +1853,7 @@ struct TableMaker {
   }
 
   // produce the barrel only DQ skimmed data model typically for Pb-Pb (with centrality), no subscribtion to the DQ event filter
-  void processPbPbBarrelOnly(MyEventsWithCentAndMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPbPbBarrelOnly(MyEventsWithCentAndMults const& collisions, MyBCs const& bcs,
                              MyBarrelTracksWithCov const& tracksBarrel,
                              TrackAssoc const& trackAssocs)
   {
@@ -1684,7 +1861,7 @@ struct TableMaker {
   }
 
   // produce the barrel only DQ skimmed data model typically for Pb-Pb (with centrality), no TOF
-  void processPbPbBarrelOnlyNoTOF(MyEventsWithCentAndMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPbPbBarrelOnlyNoTOF(MyEventsWithCentAndMults const& collisions, MyBCs const& bcs,
                                   MyBarrelTracksWithCovNoTOF const& tracksBarrel,
                                   TrackAssoc const& trackAssocs)
   {
@@ -1702,7 +1879,7 @@ struct TableMaker {
   }
 
   // produce the barrel only DQ skimmed data model typically for Pb-Pb (with centrality), no subscribtion to the DQ event filter
-  void processPbPbBarrelOnlyWithV0Bits(MyEventsWithCentAndMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPbPbBarrelOnlyWithV0Bits(MyEventsWithCentAndMults const& collisions, MyBCs const& bcs,
                                        MyBarrelTracksWithV0Bits const& tracksBarrel,
                                        TrackAssoc const& trackAssocs)
   {
@@ -1711,7 +1888,7 @@ struct TableMaker {
   }
 
   // produce the barrel only DQ skimmed data model typically for Pb-Pb (with centrality), no subscribtion to the DQ event filter
-  void processPbPbBarrelOnlyWithV0BitsNoTOF(MyEventsWithCentAndMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPbPbBarrelOnlyWithV0BitsNoTOF(MyEventsWithCentAndMults const& collisions, MyBCs const& bcs,
                                             MyBarrelTracksWithV0BitsNoTOF const& tracksBarrel,
                                             TrackAssoc const& trackAssocs)
   {
@@ -1720,21 +1897,21 @@ struct TableMaker {
   }
 
   // produce the muon only DQ skimmed data model typically for Pb-Pb (with centrality), no subscribtion to the DQ event filter
-  void processPbPbMuonOnly(MyEventsWithCentAndMults const& collisions, BCsWithTimestamps const& bcs,
-                           MyMuonsWithCov const& muons, FwdTrackAssoc const& fwdTrackAssocs)
+  void processPbPbMuonOnly(MyEventsWithCentAndMults const& collisions, MyBCs const& bcs,
+                           MyMuonsWithCov const& muons, FwdTrackAssoc const& fwdTrackAssocs, aod::FT0s& ft0s, aod::FV0As& fv0as, aod::FDDs& fdds)
   {
-    fullSkimming<gkEventFillMapWithCentAndMults, 0u, gkMuonFillMapWithCov, 0u>(collisions, bcs, nullptr, nullptr, muons, nullptr, nullptr, fwdTrackAssocs, nullptr, nullptr, nullptr, nullptr, nullptr);
+    fullSkimming<gkEventFillMapWithCentAndMults, 0u, gkMuonFillMapWithCov, 0u>(collisions, bcs, nullptr, nullptr, muons, nullptr, nullptr, fwdTrackAssocs, nullptr, nullptr, ft0s, fv0as, fdds);
   }
 
   // produce the realigned muon only DQ skimmed data model typically for Pb-Pb (with centrality), no subscribtion to the DQ event filter
-  void processPbPbRealignedMuonOnly(MyEventsWithCentAndMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPbPbRealignedMuonOnly(MyEventsWithCentAndMults const& collisions, MyBCs const& bcs,
                                     MyMuonsRealignWithCov const& muons, FwdTrackAssoc const& fwdTrackAssocs)
   {
     fullSkimming<gkEventFillMapWithCentAndMults, 0u, gkMuonRealignFillMapWithCov, 0u>(collisions, bcs, nullptr, nullptr, muons, nullptr, nullptr, fwdTrackAssocs, nullptr, nullptr, nullptr, nullptr, nullptr);
   }
 
   // produce the muon+mft DQ skimmed data model typically for Pb-Pb (with centrality), no subscribtion to the DQ event filter
-  void processPbPbMuonMFT(MyEventsWithCentAndMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPbPbMuonMFT(MyEventsWithCentAndMults const& collisions, MyBCs const& bcs,
                           MyMuonsWithCov const& muons, MFTTracks const& mftTracks,
                           FwdTrackAssoc const& fwdTrackAssocs, MFTTrackAssoc const& mftAssocs)
   {
@@ -1742,7 +1919,7 @@ struct TableMaker {
   }
 
   // produce the muon+mft DQ skimmed data model typically including MFT covariances
-  void processPPMuonRefit(MyEventsWithMults const& collisions, BCsWithTimestamps const& bcs,
+  void processPPMuonRefit(MyEventsWithMults const& collisions, MyBCs const& bcs,
                           MyMuonsWithCov const& muons, MFTTracks const& mftTracks,
                           FwdTrackAssoc const& fwdTrackAssocs, MFTTrackAssoc const& mftAssocs,
                           aod::MFTTracksCov const& mftCovs)

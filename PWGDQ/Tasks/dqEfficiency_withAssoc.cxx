@@ -2322,8 +2322,12 @@ struct AnalysisSameEventPairing {
       // NOTE: Signals are checked here mostly based on the skimmed MC stack, so depending on the requested signal, the stack could be incomplete.
       // NOTE: However, the working model is that the decisions on MC signals are precomputed during skimming and are stored in the mcReducedFlags member.
       // TODO:  Use the mcReducedFlags to select signals
+      if (mctrack.mcReducedFlags() > 0) {
+        LOGP(info, "mcReducedFlags = {}", mctrack.mcReducedFlags());
+      }
       for (auto& sig : fGenMCSignals) {
         if (sig->CheckSignal(true, mctrack)) {
+          LOGP(info, "MC signal = {}", sig->GetName());
           fHistMan->FillHistClass(Form("MCTruthGen_%s", sig->GetName()), VarManager::fgValues);
         }
       }

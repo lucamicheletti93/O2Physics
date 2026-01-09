@@ -207,6 +207,10 @@ class VarManager : public TObject
     kIsGoodITSLayer3,            // number of inactive chips on ITS layer 3 is below maximum allowed value
     kIsGoodITSLayer0123,         // numbers of inactive chips on ITS layers 0-3 are below maximum allowed values
     kIsGoodITSLayersAll,         // numbers of inactive chips on all ITS layers are below maximum allowed values
+    kIsTriggerZNAZNC,            // trigger ZNA && ZNC
+    kIsFt0Central,               // FT0C central event
+    kIsFt0SemiCentral,           // FT0C semicentral event
+    kIsFt0AllCentral,            // FT0C central || semicentral event
     kIsINT7,
     kIsEMC7,
     kIsINT7inMUON,
@@ -1161,6 +1165,8 @@ class VarManager : public TObject
   static void FillPropagateMuon(const T& muon, const C& collision, float* values = nullptr);
   template <typename T>
   static void FillBC(T const& bc, float* values = nullptr);
+  template <typename T1, typename T2, typename T3, typename T4>
+  static void FillBcForNorm(const T1& bc, const T2& ft0s, const T3& fv0as, const T4& fdds, float* values = nullptr);
   template <uint32_t fillMap, typename T>
   static void FillEvent(T const& event, float* values = nullptr);
   template <uint32_t fillMap, typename TEvent, typename TAssoc, typename TTracks>
@@ -1646,6 +1652,27 @@ void VarManager::FillBC(T const& bc, float* values)
   values[kTimeFromSOR] = (fgSOR > 0 ? (bc.timestamp() - fgSOR) / 60000. : -1.0);
 }
 
+template <typename T1, typename T2, typename T3, typename T4>
+void VarManager::FillBcForNorm(T1 const& bc, T2 const& ft0s, T3 const& fv0as, T4 const& fdds, float* values)
+{
+  if (!values) {
+    values = fgValues;
+  }
+
+  if (bc.has_ft0()) {
+    std::bitset<8> fT0Triggers = bc.ft0().triggerMask();
+    if (fgUsedVars[kIsFt0Central]) {
+      values[kIsFt0Central] = fT0Triggers[o2::ft0::Triggers::bitCen];
+    }
+    if (fgUsedVars[kIsFt0SemiCentral]) {
+      values[kIsFt0SemiCentral] = fT0Triggers[o2::ft0::Triggers::bitSCen];
+    }
+    if (fgUsedVars[kIsFt0AllCentral]) {
+      values[kIsFt0AllCentral] = fT0Triggers[o2::ft0::Triggers::bitSCen] || fT0Triggers[o2::ft0::Triggers::bitCen];
+    }
+  }
+}
+
 template <uint32_t fillMap, typename T>
 void VarManager::FillEvent(T const& event, float* values)
 {
@@ -1691,6 +1718,12 @@ void VarManager::FillEvent(T const& event, float* values)
     if (fgUsedVars[kIsSel8]) {
       values[kIsSel8] = event.selection_bit(o2::aod::evsel::kIsTriggerTVX) && event.selection_bit(o2::aod::evsel::kNoITSROFrameBorder) && event.selection_bit(o2::aod::evsel::kNoTimeFrameBorder);
     }
+    if (fgUsedVars[kIsTriggerZNAZNC]) {
+      values[kIsTriggerZNAZNC] = event.selection_bit(o2::aod::evsel::kIsBBZNA) && event.selection_bit(o2::aod::evsel::kIsBBZNC);
+    }
+    //if (fgUsedVars[kIsFt0AllCentral]) {
+      //values[kIsFt0AllCentral] = event.selection_bit(o2::ft0::Triggers::bitCen) || event.selection_bit(o2::ft0::Triggers::bitSCen);
+    //}
     if (fgUsedVars[kIsGoodITSLayer3]) {
       values[kIsGoodITSLayer3] = event.selection_bit(o2::aod::evsel::kIsGoodITSLayer3);
     }
