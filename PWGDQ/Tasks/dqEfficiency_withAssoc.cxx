@@ -1966,6 +1966,41 @@ struct AnalysisSameEventPairing {
             dileptonInfoList(t1.collisionId(), event.posX(), event.posY(), event.posZ());
           }
 
+          /*if (useMiniTree.fConfigMiniTree) {
+            if constexpr (TPairType == VarManager::kDecayToMuMu) {
+              twoTrackFilter = a1.isMuonSelected_raw() & a2.isMuonSelected_raw() & fMuonFilterMask;
+              if (!twoTrackFilter) { // the tracks must have at least one filter bit in common to continue
+                continue;
+              }
+              auto t1 = a1.template reducedmuon_as<TTracks>();
+              auto t2 = a2.template reducedmuon_as<TTracks>();
+
+              float dileptonMass = VarManager::fgValues[VarManager::kMass];
+              if (dileptonMass > useMiniTree.fConfigMiniTreeMinMass && dileptonMass < useMiniTree.fConfigMiniTreeMaxMass) {
+                // In the miniTree the positive daughter is positioned as first
+                if (t1.sign() > 0) {
+                  dileptonMiniTreeRec(mcDecision,
+                                      VarManager::fgValues[VarManager::kMass],
+                                      VarManager::fgValues[VarManager::kPt], VarManager::fgValues[VarManager::kEta], VarManager::fgValues[VarManager::kPhi], VarManager::fgValues[VarManager::kCentFT0C],
+                                      t1.reducedMCTrack().pt(), t1.reducedMCTrack().eta(), t1.reducedMCTrack().phi(),
+                                      t2.reducedMCTrack().pt(), t2.reducedMCTrack().eta(), t2.reducedMCTrack().phi(),
+                                      t1.pt(), t1.eta(), t1.phi(),
+                                      t2.pt(), t2.eta(), t2.phi(),
+                                      t1.trackType(), t2.trackType());
+                } else {
+                  dileptonMiniTreeRec(mcDecision,
+                                      VarManager::fgValues[VarManager::kMass],
+                                      VarManager::fgValues[VarManager::kPt], VarManager::fgValues[VarManager::kEta], VarManager::fgValues[VarManager::kPhi], VarManager::fgValues[VarManager::kCentFT0C],
+                                      t2.reducedMCTrack().pt(), t2.reducedMCTrack().eta(), t2.reducedMCTrack().phi(),
+                                      t1.reducedMCTrack().pt(), t1.reducedMCTrack().eta(), t1.reducedMCTrack().phi(),
+                                      t2.pt(), t2.eta(), t2.phi(),
+                                      t1.pt(), t1.eta(), t1.phi(),
+                                      t2.trackType(), t1.trackType());
+                }
+              }
+            }
+          }*/
+
           if constexpr (TTwoProngFitter) {
             dimuonsExtraList(t1.globalIndex(), t2.globalIndex(), VarManager::fgValues[VarManager::kVertexingTauz], VarManager::fgValues[VarManager::kVertexingLz], VarManager::fgValues[VarManager::kVertexingLxy]);
             if (fConfigOptions.flatTables.value && t1.has_reducedMCTrack() && t2.has_reducedMCTrack()) {
@@ -2030,15 +2065,25 @@ struct AnalysisSameEventPairing {
 
                       float dileptonMass = VarManager::fgValues[VarManager::kMass];
                       if (dileptonMass > useMiniTree.fConfigMiniTreeMinMass && dileptonMass < useMiniTree.fConfigMiniTreeMaxMass) {
+                        dileptonMiniTreeRec(mcDecision,
+                                              VarManager::fgValues[VarManager::kMass],
+                                              VarManager::fgValues[VarManager::kPt], VarManager::fgValues[VarManager::kEta], VarManager::fgValues[VarManager::kPhi], VarManager::fgValues[VarManager::kCentFT0C],
+                                              t1.reducedMCTrack().pt(), t1.reducedMCTrack().eta(), t1.reducedMCTrack().phi(),
+                                              t2.reducedMCTrack().pt(), t2.reducedMCTrack().eta(), t2.reducedMCTrack().phi(),
+                                              t1.pt(), t1.eta(), t1.phi(),
+                                              t2.pt(), t2.eta(), t2.phi(),
+                                              t1.trackType(), t2.trackType(),
+                                              sign1, sign2);
                         // In the miniTree the positive daughter is positioned as first
-                        if (t1.sign() > 0) {
+                        /*if (t1.sign() > 0) {
                           dileptonMiniTreeRec(mcDecision,
                                               VarManager::fgValues[VarManager::kMass],
                                               VarManager::fgValues[VarManager::kPt], VarManager::fgValues[VarManager::kEta], VarManager::fgValues[VarManager::kPhi], VarManager::fgValues[VarManager::kCentFT0C],
                                               t1.reducedMCTrack().pt(), t1.reducedMCTrack().eta(), t1.reducedMCTrack().phi(),
                                               t2.reducedMCTrack().pt(), t2.reducedMCTrack().eta(), t2.reducedMCTrack().phi(),
                                               t1.pt(), t1.eta(), t1.phi(),
-                                              t2.pt(), t2.eta(), t2.phi());
+                                              t2.pt(), t2.eta(), t2.phi(),
+                                              t1.trackType(), t2.trackType());
                         } else {
                           dileptonMiniTreeRec(mcDecision,
                                               VarManager::fgValues[VarManager::kMass],
@@ -2046,8 +2091,9 @@ struct AnalysisSameEventPairing {
                                               t2.reducedMCTrack().pt(), t2.reducedMCTrack().eta(), t2.reducedMCTrack().phi(),
                                               t1.reducedMCTrack().pt(), t1.reducedMCTrack().eta(), t1.reducedMCTrack().phi(),
                                               t2.pt(), t2.eta(), t2.phi(),
-                                              t1.pt(), t1.eta(), t1.phi());
-                        }
+                                              t1.pt(), t1.eta(), t1.phi(),
+                                              t2.trackType(), t1.trackType());
+                        }*/
                       }
                     }
                   }
@@ -2090,6 +2136,29 @@ struct AnalysisSameEventPairing {
                 for (unsigned int isig = 0; isig < fRecMCSignals.size(); isig++) { // loop over MC signals
                   if (mcDecision & (static_cast<uint32_t>(1) << isig)) {
                     fHistMan->FillHistClass(histNamesMC[icut * fRecMCSignals.size() + isig][1].Data(), VarManager::fgValues);
+                    if (useMiniTree.fConfigMiniTree) {
+                      if constexpr (TPairType == VarManager::kDecayToMuMu) {
+                        twoTrackFilter = a1.isMuonSelected_raw() & a2.isMuonSelected_raw() & fMuonFilterMask;
+                        if (!twoTrackFilter) { // the tracks must have at least one filter bit in common to continue
+                          continue;
+                        }
+                        auto t1 = a1.template reducedmuon_as<TTracks>();
+                        auto t2 = a2.template reducedmuon_as<TTracks>();
+
+                        float dileptonMass = VarManager::fgValues[VarManager::kMass];
+                        if (dileptonMass > useMiniTree.fConfigMiniTreeMinMass && dileptonMass < useMiniTree.fConfigMiniTreeMaxMass) {
+                          dileptonMiniTreeRec(mcDecision,
+                                              VarManager::fgValues[VarManager::kMass],
+                                              VarManager::fgValues[VarManager::kPt], VarManager::fgValues[VarManager::kEta], VarManager::fgValues[VarManager::kPhi], VarManager::fgValues[VarManager::kCentFT0C],
+                                              t1.reducedMCTrack().pt(), t1.reducedMCTrack().eta(), t1.reducedMCTrack().phi(),
+                                              t2.reducedMCTrack().pt(), t2.reducedMCTrack().eta(), t2.reducedMCTrack().phi(),
+                                              t1.pt(), t1.eta(), t1.phi(),
+                                              t2.pt(), t2.eta(), t2.phi(),
+                                              t1.trackType(), t2.trackType(),
+                                              sign1, sign2);
+                        }
+                      }
+                    }
                   }
                 }
                 if (fConfigQA) {
@@ -2105,6 +2174,30 @@ struct AnalysisSameEventPairing {
                 for (unsigned int isig = 0; isig < fRecMCSignals.size(); isig++) { // loop over MC signals
                   if (mcDecision & (static_cast<uint32_t>(1) << isig)) {
                     fHistMan->FillHistClass(histNamesMC[icut * fRecMCSignals.size() + isig][2].Data(), VarManager::fgValues);
+
+                    if (useMiniTree.fConfigMiniTree) {
+                      if constexpr (TPairType == VarManager::kDecayToMuMu) {
+                        twoTrackFilter = a1.isMuonSelected_raw() & a2.isMuonSelected_raw() & fMuonFilterMask;
+                        if (!twoTrackFilter) { // the tracks must have at least one filter bit in common to continue
+                          continue;
+                        }
+                        auto t1 = a1.template reducedmuon_as<TTracks>();
+                        auto t2 = a2.template reducedmuon_as<TTracks>();
+
+                        float dileptonMass = VarManager::fgValues[VarManager::kMass];
+                        if (dileptonMass > useMiniTree.fConfigMiniTreeMinMass && dileptonMass < useMiniTree.fConfigMiniTreeMaxMass) {
+                          dileptonMiniTreeRec(mcDecision,
+                                              VarManager::fgValues[VarManager::kMass],
+                                              VarManager::fgValues[VarManager::kPt], VarManager::fgValues[VarManager::kEta], VarManager::fgValues[VarManager::kPhi], VarManager::fgValues[VarManager::kCentFT0C],
+                                              t1.reducedMCTrack().pt(), t1.reducedMCTrack().eta(), t1.reducedMCTrack().phi(),
+                                              t2.reducedMCTrack().pt(), t2.reducedMCTrack().eta(), t2.reducedMCTrack().phi(),
+                                              t1.pt(), t1.eta(), t1.phi(),
+                                              t2.pt(), t2.eta(), t2.phi(),
+                                              t1.trackType(), t2.trackType(),
+                                              sign1, sign2);
+                        }
+                      }
+                    }
                   }
                 }
                 if (fConfigQA) {

@@ -667,6 +667,10 @@ DECLARE_SOA_COLUMN(Vt2, vt2, float); //! Production vertex time
 DECLARE_SOA_COLUMN(IsAmbig1, isAmbig1, int); //!
 DECLARE_SOA_COLUMN(IsAmbig2, isAmbig2, int); //!
 
+DECLARE_SOA_COLUMN(TrackType1, trackType1, int); //!
+DECLARE_SOA_COLUMN(TrackType2, trackType2, int); //!
+
+
 DECLARE_SOA_COLUMN(FwdDcaX1, fwdDcaX1, float);               //! X component of forward DCA
 DECLARE_SOA_COLUMN(FwdDcaY1, fwdDcaY1, float);               //! Y component of forward DCA
 DECLARE_SOA_COLUMN(FwdDcaX2, fwdDcaX2, float);               //! X component of forward DCA
@@ -932,7 +936,9 @@ DECLARE_SOA_TABLE(DileptonsMiniTreeRec, "AOD", "RTDILMTREEREC", //!
                   dilepton_track_index::PtMC1, dilepton_track_index::EtaMC1, dilepton_track_index::PhiMC1,
                   dilepton_track_index::PtMC2, dilepton_track_index::EtaMC2, dilepton_track_index::PhiMC2,
                   dilepton_track_index::Pt1, dilepton_track_index::Eta1, dilepton_track_index::Phi1,
-                  dilepton_track_index::Pt2, dilepton_track_index::Eta2, dilepton_track_index::Phi2);
+                  dilepton_track_index::Pt2, dilepton_track_index::Eta2, dilepton_track_index::Phi2,
+                  dilepton_track_index::TrackType1, dilepton_track_index::TrackType2,
+                  dilepton_track_index::Sign1, dilepton_track_index::Sign2);
 
 DECLARE_SOA_TABLE(DileptonsPolarization, "AOD", "RTDILPOLAR", //!
                   reducedpair::CosThetaHE, reducedpair::PhiHE, reducedpair::PhiTildeHE,
