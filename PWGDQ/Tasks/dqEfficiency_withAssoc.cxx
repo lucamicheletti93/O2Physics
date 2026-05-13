@@ -1988,10 +1988,12 @@ struct AnalysisSameEventPairing {
           // run MC matching for this pair
           int isig = 0;
           mcDecision = 0;
+          bool mcSignalFound = false;
           for (auto sig = fRecMCSignals.begin(); sig != fRecMCSignals.end(); sig++, isig++) {
             if (t1.has_reducedMCTrack() && t2.has_reducedMCTrack()) {
               if ((*sig)->CheckSignal(true, t1.reducedMCTrack(), t2.reducedMCTrack())) {
                 mcDecision |= (static_cast<uint32_t>(1) << isig);
+                mcSignalFound = true;
               }
             }
           } // end loop over MC signals
@@ -1999,6 +2001,9 @@ struct AnalysisSameEventPairing {
           if (t1.has_reducedMCTrack() && t2.has_reducedMCTrack()) {
             isCorrectAssoc_leg1 = (t1.reducedMCTrack().reducedMCevent() == event.reducedMCevent());
             isCorrectAssoc_leg2 = (t2.reducedMCTrack().reducedMCevent() == event.reducedMCevent());
+            if (mcSignalFound) {
+              LOGP(info, "[ev:{}] --> match1: {}, gloIndex1:{}, trackGloId:{} || match2: {}, gloIndex2:{}, trackGloId:{}", event.reducedMCeventId(), isCorrectAssoc_leg1, t1.globalIndex(), t1.reducedMCTrack().globalIndex(), isCorrectAssoc_leg2, t2.globalIndex(), t2.reducedMCTrack().globalIndex());
+            }
           }
 
           VarManager::FillPair<TPairType, TTrackFillMap>(t1, t2);
@@ -2377,7 +2382,10 @@ struct AnalysisSameEventPairing {
     }
 
     // Fill Generated histograms taking into account selected collisions
+    LOGP(info, "Number of events: {}", events.size());
     for (auto& event : events) {
+      //LOGP(info, "Event: vtxZ={} ; nContrib={}", VarManager::fgValues[VarManager::kMCVtxZ], VarManager::fgValues[VarManager::kVtxNcontribReal]);
+      //VarManager::fgValues[VarManager::kMCVtxZ], VarManager::fgValues[VarManager::kMultFT0A], VarManager::fgValues[VarManager::kMultFT0C], VarManager::fgValues[VarManager::kCentFT0M], VarManager::fgValues[VarManager::kVtxNcontribReal]
       if (!event.isEventSelected_bit(0)) {
         continue;
       }
@@ -2393,6 +2401,7 @@ struct AnalysisSameEventPairing {
         if (track.reducedMCeventId() != event.reducedMCeventId()) {
           continue;
         }
+        LOGP(info, "PDG code:{}, eventId:{}, trackGloId:{}, pt:{}, eta:{}, phi:{}", track.pdgCode(), event.reducedMCeventId(), track.globalIndex(), track.pt(), track.eta(), track.phi());
         VarManager::FillTrackMC(mcTracks, track);
         auto track_raw = mcTracks.rawIteratorAt(track.globalIndex());
         // auto track_raw = groupedMCTracks.rawIteratorAt(track.globalIndex());
@@ -2400,6 +2409,7 @@ struct AnalysisSameEventPairing {
         isig = 0;
         for (auto& sig : fGenMCSignals) {
           if (sig->CheckSignal(true, track_raw)) {
+            LOGP(info, "[ev:{}]---------> Signal found!", event.reducedMCeventId());
             mcDecision |= (static_cast<uint32_t>(1) << isig);
             fHistMan->FillHistClass(Form("MCTruthGenSel_%s", sig->GetName()), VarManager::fgValues);
             MCTruthTableEffi(VarManager::fgValues[VarManager::kMCPt], VarManager::fgValues[VarManager::kMCEta], VarManager::fgValues[VarManager::kMCY], VarManager::fgValues[VarManager::kMCPhi], VarManager::fgValues[VarManager::kMCVz], VarManager::fgValues[VarManager::kMCVtxZ], VarManager::fgValues[VarManager::kMultFT0A], VarManager::fgValues[VarManager::kMultFT0C], VarManager::fgValues[VarManager::kCentFT0M], VarManager::fgValues[VarManager::kVtxNcontribReal]);
