@@ -307,6 +307,7 @@ struct AnalysisTagAndProbe {
 
             for (int icut = 0; icut < ncuts; icut++) {
               if (sign1 * sign2 < 0) {
+                LOGP(info, "Track type 1: {}, Track type 2: {}", t1.trackType(), t2.trackType());
                 fHistMan->FillHistClass(histNames[icut][0].Data(), VarManager::fgValues);
 
                 if (static_cast<int>(t1.trackType()) == 3) {   // t1 is the tag (track MCHMID)

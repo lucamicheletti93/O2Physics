@@ -420,6 +420,9 @@ struct tableMakerMuonMchTrkEfficiency {
     for (int i = 0; i < ncuts; i++)
       nselmuons.push_back(0);
 
+    LOGP(info, "muon fwd tracks: {}", tracksMuon.size());
+    int counterTracks = 0;
+    rowCandidateBase.reserve(0);
     rowCandidateBase.reserve(tracksMuon.size());
     for (auto& muon : tracksMuon) {
 
@@ -458,8 +461,12 @@ struct tableMakerMuonMchTrkEfficiency {
       }
       FillHistos(mEta, mPhi, mPt, mchBitmap, isMuonSelectedAny);
 
-      if (isMuonSelectedAny)
+      if (isMuonSelectedAny) {
+        LOGP(info, "[ {} ] Adding row candidate base", counterTracks);
+        LOGP(info, "--> TEST: {} {} {} {} {}", mEta, mPt, mPhi, mchBitmap, mType);
         rowCandidateBase(mEta, mPt, mPhi, mchBitmap, mType);
+        counterTracks++;
+      }
 
     } // end loop on muons
     LOGF(debug, "end muon loop");
