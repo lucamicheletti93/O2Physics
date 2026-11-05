@@ -51,6 +51,7 @@
 #include <MFTTracking/Constants.h>
 #include <MathUtils/Cartesian.h>
 #include <ReconstructionDataFormats/TrackFwd.h>
+#include <Framework/HistogramRegistry.h>
 
 #include <Math/MatrixFunctions.h>
 #include <Math/SMatrix.h>
@@ -120,6 +121,10 @@ static float getDeltaPhi(float phi1, float phi2)
   return RecoDecay::constrainAngle(phi1 - phi2, -o2::constants::math::PI);
 }
 
+const int nTrackTypes = 5;
+const double minTrackType = 0.;
+const double maxTracktype = 5.;
+
 struct GlobalMuonMatching {
 
   static constexpr int GlobalTrackTypeMax = 2;
@@ -131,6 +136,12 @@ struct GlobalMuonMatching {
   static constexpr int ThetaAbsBoundaryDeg = 3;
   static constexpr double SlopeResolutionZ = 535.;
   static constexpr float MatchingPlaneDefaultZ = -77.5;
+
+  HistogramRegistry registry{
+    "registry",
+    {{"hTrackTypeBeforeTask", "TrackType Before task;track type;entries", {HistType::kTH1F, {{nTrackTypes, minTrackType, maxTracktype}}}},
+     {"hTrackTypeAfterTask", "TrackType After task;track type;entries", {HistType::kTH1F, {{nTrackTypes, minTrackType, maxTracktype}}}}}
+  };
 
   struct MatchingCandidate {
     int64_t muonTrackId{-1};
@@ -929,6 +940,8 @@ struct GlobalMuonMatching {
       }
     }
 
+    registry.fill(HIST("hTrackTypeAfterTask"), static_cast<int>(track.trackType()));
+
     gmCandidateFwdTracks(
       collisionId,
       track.trackType(),
@@ -1215,6 +1228,7 @@ struct GlobalMuonMatching {
     LOGF(info, "Filling matching candidate tables");
 
     for (const auto& muonTrack : muonTracks) {
+      registry.fill(HIST("hTrackTypeBeforeTask"), static_cast<int>(muonTrack.trackType()));
       if (static_cast<int>(muonTrack.trackType()) <= GlobalTrackTypeMax) {
         continue;
       }

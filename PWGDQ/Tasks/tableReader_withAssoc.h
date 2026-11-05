@@ -1055,6 +1055,18 @@ struct AnalysisMuonSelection {
     auto filterMap = static_cast<uint32_t>(0);
     int iCut = 0;
 
+    std::cout << "Assiciations: ";
+    for (auto const & assoc : assocs) {
+      std::cout << assoc.reducedmuonId() << " , ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "Muons: ";
+    for (auto const & muon : muons) {
+      std::cout << muon.index() << " , ";
+    }
+    std::cout << std::endl;
+    
     for (auto const& assoc : assocs) {
       auto event = assoc.template reducedevent_as<TEvents>();
       if (!event.isEventSelected_bit(0)) {
@@ -1064,8 +1076,12 @@ struct AnalysisMuonSelection {
       VarManager::ResetValues(0, VarManager::kNMuonTrackVariables);
       // fill event information which might be needed in histograms/cuts that combine track and event properties
       VarManager::FillEvent<TEventFillMap>(event);
-
+      LOGP(info, "size muons: {} ; size assocs: {} ; {} {}", muons.size(), assocs.size(), assoc.reducedmuonId(), assoc.reducedeventId());
+      if (!assoc.has_reducedmuon()) {
+        continue;
+      }
       auto track = assoc.template reducedmuon_as<TMuons>();
+      LOGP(info, "pt:{} ; eta:{} ; phi:{}", track.pt(), track.eta(), track.phi());
       filterMap = static_cast<uint32_t>(0);
       VarManager::FillTrack<TMuonFillMap>(track);
       if (fConfigQA) {
@@ -1147,6 +1163,7 @@ struct AnalysisMuonSelection {
 
   void processSkimmed(o2::aod::ReducedMuonsAssoc const& assocs, MyEventsVtxCovSelected const& events, MyMuonTracksWithCov const& muons)
   {
+    LOGP(info, "size muons selection: {} ; {}", assocs.size(), muons.size());
     runMuonSelection<gkEventFillMapWithCov, gkMuonFillMapWithCov>(assocs, events, muons);
   }
   void processDummy(MyEventsBasic const&)

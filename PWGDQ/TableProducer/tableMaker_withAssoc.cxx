@@ -1670,6 +1670,7 @@ struct TableMaker {
       auto muon = muons.rawIteratorAt(assoc.fwdtrackId());
       if (fConfigVariousOptions.fKeepBestMatch && static_cast<int>(muon.trackType()) < 2) {
         if (fBestMatch.find(muon.globalIndex()) == fBestMatch.end()) {
+          if (muon.trackType() == 0) {LOGP(info, "Inside the best match IF --> CONTINUE ==> {}", muon.globalIndex());}
           continue;
         }
       }
@@ -1987,9 +1988,11 @@ struct TableMaker {
               if (fConfigVariousOptions.fUseML.value) {
                 skimBestMuonMatchesML(muons, mftTracks, mftCovs, collision);
               } else {
+                LOGP(info, "SKIMMING BEST MATCHES WITHOUT ML WITH MFT COV)");
                 skimBestMuonMatches(muons);
               }
             } else {
+              LOGP(info, "SKIMMING BEST MATCHES WITHOUT ML NO MFT COV)");
               skimBestMuonMatches(muons);
             }
           }

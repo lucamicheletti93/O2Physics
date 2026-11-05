@@ -653,6 +653,7 @@ void o2::aod::dqhistograms::DefineHistograms(HistogramManager* hm, const char* h
     hm->AddHistogram(histClass, "Phi_Pt", "#varphi distribution", false, 50, 0.0, 10.0, VarManager::kPt, 720, 0.0, o2::constants::math::TwoPI, VarManager::kPhi);
     hm->AddHistogram(histClass, "IsPVcontrib_pt", "is PV contributor vs pt", false, 50, 0.0, 50.0, VarManager::kPt, 2, -0.5, 1.5, VarManager::kPVContributor);
     hm->AddHistogram(histClass, "IsPVcontrib_pt_prof", "is PV contributor vs pt", true, 50, 0.0, 50.0, VarManager::kPt, 2, -0.5, 1.5, VarManager::kPVContributor);
+    hm->AddHistogram(histClass, "TrackType", "", false, 5, 0.0, 5.0, VarManager::kMuonTrackType);
     if (subGroupStr.Contains("ambiguity") && !subGroupStr.Contains("muon")) {
       hm->AddHistogram(histClass, "AmbiguityInBunch", "in bunch collision ambiguity", false, 10, 0., 10., VarManager::kBarrelNAssocsInBunch);
       hm->AddHistogram(histClass, "AmbiguityInBunch_pt", "in bunch collision ambiguity vs p_{T}", false, 50, 0.0, 10.0, VarManager::kPt, 10, 0., 10., VarManager::kBarrelNAssocsInBunch);
