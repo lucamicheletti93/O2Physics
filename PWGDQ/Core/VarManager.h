@@ -520,6 +520,8 @@ class VarManager : public TObject
     kA2EPME_FT0A,         // A2 of VM to FT0A event plane for ME technique
     kNPairsPerEvent,      // number of pairs per event in same-event or mixed-event pairing
     kInteractionRate,
+    kFt0VtxZ,
+    kDeltaVtxZFt0VtxZ,
 
     // Variables for event mixing with cumulant
     kV22m,
@@ -1469,12 +1471,18 @@ class VarManager : public TObject
   static o2::track::TrackParCovFwd FwdToTrackPar(const T& track, const C& cov);
   template <typename T, typename C>
   static o2::dataformats::GlobalFwdTrack PropagateMuon(const T& muon, const C& collision, int endPoint = kToVertex);
+  template <typename T>
+  static o2::dataformats::GlobalFwdTrack PropagateMuonToFTOVertex(const T& muon, float z = 0.0);
   template <typename T, typename C>
   static o2::track::TrackParCovFwd PropagateFwd(const T& track, const C& cov, float z);
+  template <uint32_t fillMap, typename T, typename B>
+  static void FillPropagateMuonToFTOVertex(const T& muon, const B& bc, float* values = nullptr);
   template <uint32_t fillMap, typename T, typename C>
   static void FillPropagateMuon(const T& muon, const C& collision, float* values = nullptr);
   template <typename T>
   static void FillBC(T const& bc, float* values = nullptr);
+  template <uint32_t fillMap, typename T>
+  static void FillFt0Event(T const& ft0, float* values = nullptr);
   template <uint32_t fillMap, typename T>
   static void FillEvent(T const& event, float* values = nullptr);
   template <typename T>
@@ -1866,6 +1874,24 @@ o2::dataformats::VertexBase VarManager::RecalculatePrimaryVertex(T const& track0
   return primaryVertexRec;
 }
 
+template <typename T>
+o2::dataformats::GlobalFwdTrack VarManager::PropagateMuonToFTOVertex(const T& muon, float zFt0)
+{
+  float xShift = 0.f;
+  float yShift = 0.f;
+  float zShift = 0.f;
+  GetFwdShiftForY(muon.y(), xShift, yShift, zShift);
+  o2::track::TrackParCovFwd fwdtrack = o2::aod::fwdtrackutils::getTrackParCovFwd3DShift(muon, xShift, yShift, zShift, muon);
+  o2::dataformats::GlobalFwdTrack propmuon;
+  if (static_cast<int>(muon.trackType()) > 2) {
+    auto mchTrack = mMatching.FwdtoMCH(fwdtrack);
+    //o2::mch::TrackExtrap::extrapToVertex(mchTrack, bc.ft0().posX(), bc.ft0().posY(), bc.ft0().posZ(), bc.ft0().covXX(), bc.ft0().covYY());
+    o2::mch::TrackExtrap::extrapToVertexWithoutBranson(mchTrack, zFt0);
+    propmuon = mMatching.MCHtoFwd(mchTrack);
+  }
+  return propmuon;
+}
+
 template <typename T, typename C>
 o2::dataformats::GlobalFwdTrack VarManager::PropagateMuon(const T& muon, const C& collision, const int endPoint)
 {
@@ -1907,6 +1933,56 @@ o2::track::TrackParCovFwd VarManager::PropagateFwd(const T& track, const C& cov,
   o2::track::TrackParCovFwd fwdtrack = FwdToTrackPar(track, cov);
   fwdtrack.propagateToZhelix(z, fgMagField);
   return fwdtrack;
+}
+
+template <uint32_t fillMap, typename T, typename B>
+void VarManager::FillPropagateMuonToFTOVertex(const T& muon, const B& bc, float* values)
+{
+  if (!values) {
+    values = static_cast<float*>(fgValues);
+  }
+
+  if constexpr ((fillMap & ReducedMuonCov) > 0) {
+    if (muon.filteringFlags() & (static_cast<uint8_t>(1) << VarManager::kMuonIsPropagated)) { // the muon is already propagated, so nothing to do
+      return;
+    }
+  }
+
+  float zFt0 = 0.0;
+  if (bc.has_ft0()) {
+    //LOGP(info, "FT0 z position: [{},{},{}] cm, collision z position: [{},{},{}] cm", bc.ft0().posX(), bc.ft0().posY(), bc.ft0().posZ(), collision.posX(), collision.posY(), collision.posZ());
+    LOGP(info, "FillPropagateMuonToFTOVertex -> FT0 z position: {} cm", bc.ft0().posZ());
+    zFt0 = bc.ft0().posZ();
+  }
+
+  if constexpr ((fillMap & MuonCov) > 0 || (fillMap & ReducedMuonCov) > 0 || (fillMap & MuonCovRealign) > 0) {
+    o2::dataformats::GlobalFwdTrack propmuon = PropagateMuonToFTOVertex(muon, zFt0);
+    values[kPt] = propmuon.getPt();
+    values[kX] = propmuon.getX();
+    values[kY] = propmuon.getY();
+    values[kZ] = propmuon.getZ();
+    values[kEta] = propmuon.getEta();
+    values[kTgl] = propmuon.getTgl();
+    values[kPhi] = propmuon.getPhi();
+
+    const SMatrix55& cov = propmuon.getCovariances();
+    values[kMuonCXX] = cov(0, 0);
+    values[kMuonCXY] = cov(1, 0);
+    values[kMuonCYY] = cov(1, 1);
+    values[kMuonCPhiX] = cov(2, 0);
+    values[kMuonCPhiY] = cov(2, 1);
+    values[kMuonCPhiPhi] = cov(2, 2);
+    values[kMuonCTglX] = cov(3, 0);
+    values[kMuonCTglY] = cov(3, 1);
+    values[kMuonCTglPhi] = cov(3, 2);
+    values[kMuonCTglTgl] = cov(3, 3);
+    values[kMuonC1Pt2X] = cov(4, 0);
+    values[kMuonC1Pt2Y] = cov(4, 1);
+    values[kMuonC1Pt2Phi] = cov(4, 2);
+    values[kMuonC1Pt2Tgl] = cov(4, 3);
+    values[kMuonC1Pt21Pt2] = cov(4, 4);
+    LOGP(info, "{} {} {} {} {} {} {} {} {} {} {} {} {} {} {}", values[kMuonCXX], values[kMuonCXY], values[kMuonCYY], values[kMuonCPhiX], values[kMuonCPhiY], values[kMuonCPhiPhi], values[kMuonCTglX], values[kMuonCTglY], values[kMuonCTglPhi], values[kMuonCTglTgl], values[kMuonC1Pt2X], values[kMuonC1Pt2Y], values[kMuonC1Pt2Phi], values[kMuonC1Pt2Tgl], values[kMuonC1Pt21Pt2]);
+  }
 }
 
 template <uint32_t fillMap, typename T, typename C>
@@ -2057,6 +2133,15 @@ void VarManager::FillBC(T const& bc, float* values)
   values[kBCOrbit] = bc.globalBC() % o2::constants::lhc::LHCMaxBunches;
   values[kTimestamp] = bc.timestamp();
   values[kTimeFromSOR] = (fgSOR > 0 ? (bc.timestamp() - fgSOR) / 60000. : -1.0);
+}
+
+template <uint32_t fillMap, typename T>
+void VarManager::FillFt0Event(T const& ft0, float* values) {
+  if (!values) {
+    values = static_cast<float*>(fgValues);
+  }
+  values[kFt0VtxZ] = ft0.posZ();
+  values[kDeltaVtxZFt0VtxZ] = ft0.posZ() - values[kVtxZ];
 }
 
 template <uint32_t fillMap, typename T>

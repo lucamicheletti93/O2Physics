@@ -25,6 +25,8 @@
 #include <Framework/DataTypes.h>
 #include <Framework/Logger.h>
 
+#include <DataFormatsFT0/Digit.h>
+
 #include <Rtypes.h>
 
 #include <cmath>
@@ -130,12 +132,13 @@ class CollisionAssociation
     }
   }
 
-  template <typename TTracksUnfiltered, typename TTracks, typename TAmbiTracks, typename Assoc, typename RevIndices>
+  template <typename TTracksUnfiltered, typename TTracks, typename TAmbiTracks, typename TBCs, typename TFT0s, typename Assoc, typename RevIndices>
   void runAssocWithTime(o2::aod::Collisions const& collisions,
                         TTracksUnfiltered const& tracksUnfiltered,
                         TTracks const& tracks,
                         TAmbiTracks const& ambiguousTracks,
-                        o2::aod::BCs const& bcs,
+                        TBCs const& bcs,
+                        TFT0s const& ft0s,
                         Assoc& association,
                         RevIndices& reverseIndices)
   {
@@ -154,7 +157,11 @@ class CollisionAssociation
     for (; track != tracks.end(); ++track) {
       int64_t trackBC = -1;
       if (track.has_collision()) {
-        trackBC = track.collision().bc().globalBC();
+        //trackBC = track.collision().bc().globalBC();
+        auto collision = track.collision();
+        auto bc = collision.template bc_as<TBCs>();
+        trackBC = bc.globalBC();
+        //LOGP(info, "TRACK HAS COLLISION: trackBC = {}", trackBC);
       } else if (mIncludeUnassigned) {
         for (const auto& ambTrack : ambiguousTracks) {
           if constexpr (isCentralBarrel) { // FIXME: to be removed as soon as it is possible to use getId<Table>() for joined tables
@@ -204,7 +211,9 @@ class CollisionAssociation
     for (const auto& collision : collisions) {
       const float collTime = collision.collisionTime();
       const float collTimeRes2 = collision.collisionTimeRes() * collision.collisionTimeRes();
-      uint64_t collBC = collision.bc().globalBC();
+      //uint64_t collBC = collision.bc().globalBC();
+      auto bc = collision.template bc_as<TBCs>();
+      uint64_t collBC = bc.globalBC();
 
       // This is done per block to allow optimization below. Within each block the globalBC increase continously
       for (auto& iterationWindow : trackIterationWindows) { // o2-linter: disable=const-ref-in-for-loop (iterationWindow is modified)
@@ -258,6 +267,7 @@ class CollisionAssociation
           LOGP(debug, "collision time={}, collision time res={}, track time={}, track time res={}, bc collision={}, bc track={}, delta time={}", collTime, collision.collisionTimeRes(), trackInWindow.trackTime(), trackInWindow.trackTimeRes(), collBC, trackBC, deltaTime);
 
           float thresholdTime = 0.;
+          bool sameBC4CollTrk = true;
           if constexpr (isCentralBarrel) {
             if ((mUsePvAssociation == o2::aod::track_association::PVContrReassocOpt::OnlySameBc && trackInWindow.isPVContributor()) || (mUsePvAssociation == o2::aod::track_association::PVContrReassocOpt::SameBcAndLowMult && trackInWindow.isPVContributor() && trackInWindow.collision().numContrib() > mMaxPvContributorsForLowMultReassoc)) {
               thresholdTime = trackTimeRes;
@@ -276,9 +286,27 @@ class CollisionAssociation
             } else if constexpr (TTracks::template contains<o2::aod::FwdTracks>()) {
               // the track is a fwd track, with a gaussian time resolution
               thresholdTime = mNumSigmaForTimeCompat * std::sqrt(sigmaTimeRes2) + mTimeMargin;
+              if (std::abs(deltaTime) < thresholdTime) {
+                if (trackInWindow.trackType() == 3) {
+                  const auto collIdxTest = collision.globalIndex();
+                  const auto trackIdxTest = trackInWindow.globalIndex();
+                  auto bc = collision.template bc_as<TBCs>();
+                  LOGP(info, "coll. T={}, coll DT={}, trk T={}, trk DT={}, BC coll={}, BC trk={}, DeltaT={}", collTime, collision.collisionTimeRes(), trackInWindow.trackTime(), trackInWindow.trackTimeRes(), collBC, trackBC, deltaTime);
+                  if (collBC != static_cast<uint64_t>(trackBC)) {
+                    sameBC4CollTrk = false;
+                    LOGP(info, "Collision and track are in different BCs: coll. BC={}, trk BC={}", collBC, trackBC);
+                  }
+
+                  if (bc.has_ft0()) {
+                    auto ft0 = bc.ft0();
+                    LOGP(info, "[{} - {}] Filling track id {} for coll id {}", ft0.posZ(), collision.posZ(), trackIdxTest, collIdxTest);
+                  }
+                }
+              }
             }
           }
 
+          //if (std::abs(deltaTime) < thresholdTime && sameBC4CollTrk) {
           if (std::abs(deltaTime) < thresholdTime) {
             const auto collIdx = collision.globalIndex();
             const auto trackIdx = trackInWindow.globalIndex();

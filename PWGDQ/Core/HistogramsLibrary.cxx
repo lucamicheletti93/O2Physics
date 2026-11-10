@@ -57,8 +57,10 @@ void o2::aod::dqhistograms::DefineHistograms(HistogramManager* hm, const char* h
   if (groupStr.CompareTo("event") == 0) {
     if (!subGroupStr.Contains("generator") && !subGroupStr.Contains("pairing")) {
       hm->AddHistogram(histClass, "VtxZ", "Vtx Z", false, 60, -15.0, 15.0, VarManager::kVtxZ);
+      hm->AddHistogram(histClass, "Ft0VtxZ", "FT0 Vtx Z", false, 60, -15.0, 15.0, VarManager::kFt0VtxZ);
       hm->AddHistogram(histClass, "VtxZ_Run", "Vtx Z", true, 1, -0.5, 0.5, VarManager::kRunNo, 60, -15.0, 15.0, VarManager::kVtxZ, 1, 0, 1, VarManager::kNothing, "", "", "", VarManager::kNothing, VarManager::kNothing, false, true);
       hm->AddHistogram(histClass, "BC", "Event per BC", false, 3564, 0.0, 3564.0, VarManager::kBCOrbit);
+      hm->AddHistogram(histClass, "DeltaVtxZFt0Z", "#Delta(|Vtx Z - Vtx FT0|)", false, 60, -15.0, 15.0, VarManager::kDeltaVtxZFt0VtxZ);
     }
     if (subGroupStr.Contains("trigger")) {
       hm->AddHistogram(histClass, "IsINT7", "Is INT7", false, 2, -0.5, 1.5, VarManager::kIsINT7);

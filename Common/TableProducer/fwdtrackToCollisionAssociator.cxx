@@ -29,6 +29,7 @@ using namespace o2;
 using namespace o2::framework;
 using namespace o2::framework::expressions;
 using namespace o2::aod;
+//using MyBCs = soa::Join<aod::BCs, aod::Run3MatchedToBCSparse>;
 
 struct FwdTrackToCollisionAssociation {
   Produces<FwdTrackAssoc> fwdassociation;
@@ -74,9 +75,11 @@ struct FwdTrackToCollisionAssociation {
   void processFwdAssocWithTime(Collisions const& collisions,
                                FwdTracks const& muons,
                                AmbiguousFwdTracks const& ambiTracksFwd,
-                               BCs const& bcs)
+                               //MyBCs const& bcs, FT0s const& ft0s)
+                               soa::Join<aod::BCs, aod::Run3MatchedToBCSparse> const& bcs, FT0s const& ft0s)
   {
-    collisionAssociator.runAssocWithTime(collisions, muons, muons, ambiTracksFwd, bcs, fwdassociation, fwdreverseIndices);
+    LOGP(info, "BC size: {} FT0s size: {}", bcs.size(), ft0s.size());
+    collisionAssociator.runAssocWithTime(collisions, muons, muons, ambiTracksFwd, bcs, ft0s, fwdassociation, fwdreverseIndices);
   }
   PROCESS_SWITCH(FwdTrackToCollisionAssociation, processFwdAssocWithTime, "Use fwdtrack-to-collision association based on time", true);
 
@@ -90,9 +93,9 @@ struct FwdTrackToCollisionAssociation {
   void processFwdRealignAssocWithTime(Collisions const& collisions,
                                       FwdTracksReAlign const& muons,
                                       AmbiguousFwdTrksReAlign const& ambiTracksFwd,
-                                      BCs const& bcs)
+                                      soa::Join<aod::BCs, aod::Run3MatchedToBCSparse> const& bcs, FT0s const& ft0s)
   {
-    collisionAssociator.runAssocWithTime(collisions, muons, muons, ambiTracksFwd, bcs, fwdassociation, fwdreverseIndices);
+    collisionAssociator.runAssocWithTime(collisions, muons, muons, ambiTracksFwd, bcs, ft0s, fwdassociation, fwdreverseIndices);
   }
   PROCESS_SWITCH(FwdTrackToCollisionAssociation, processFwdRealignAssocWithTime, "Use fwdrealigntrack-to-collision association based on time", false);
 
@@ -106,9 +109,9 @@ struct FwdTrackToCollisionAssociation {
   void processMFTAssocWithTime(Collisions const& collisions,
                                MFTTracks const& tracks,
                                AmbiguousMFTTracks const& ambiguousTracks,
-                               BCs const& bcs)
+                               soa::Join<aod::BCs, aod::Run3MatchedToBCSparse> const& bcs, FT0s const& ft0s)
   {
-    collisionAssociator.runAssocWithTime(collisions, tracks, tracks, ambiguousTracks, bcs, mftassociation, mftreverseIndices);
+    collisionAssociator.runAssocWithTime(collisions, tracks, tracks, ambiguousTracks, bcs, ft0s, mftassociation, mftreverseIndices);
   }
   PROCESS_SWITCH(FwdTrackToCollisionAssociation, processMFTAssocWithTime, "Use MFTtrack-to-collision association based on time", true);
 

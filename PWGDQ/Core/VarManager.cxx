@@ -996,6 +996,10 @@ void VarManager::SetDefaultVarNames()
   fgVariableUnits[kDCAzNPeaksTrimmed3] = "";
   fgVariableNames[kInteractionRate] = "Interaction rate";
   fgVariableUnits[kInteractionRate] = "kHz";
+  fgVariableNames[kFt0VtxZ] = "FT0 vertex Z";
+  fgVariableUnits[kFt0VtxZ] = "cm";
+  fgVariableNames[kDeltaVtxZFt0VtxZ] = "Barrel vertex Z - FT0 vertex Z";
+  fgVariableUnits[kDeltaVtxZFt0VtxZ] = "cm";
   fgVariableNames[kPt] = "p_{T}";
   fgVariableUnits[kPt] = "GeV/c";
   fgVariableNames[kPt1] = "p_{T1}";

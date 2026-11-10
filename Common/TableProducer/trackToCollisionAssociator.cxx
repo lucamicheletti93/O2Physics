@@ -30,6 +30,7 @@ using namespace o2;
 using namespace o2::framework;
 using namespace o2::framework::expressions;
 using namespace o2::aod;
+using MyBCs = soa::Join<aod::BCs, aod::Run3MatchedToBCSparse>;
 
 struct TrackToCollisionAssociation {
 
@@ -71,9 +72,13 @@ struct TrackToCollisionAssociation {
     collisionAssociator.setMaxPvContributorsForLowMultReassoc(maxPvContributorsForLowMultReassoc);
   }
 
-  void processAssocWithTime(Collisions const& collisions, TracksWithSel const& tracksUnfiltered, TracksWithSelFilter const& tracks, AmbiguousTracks const& ambiguousTracks, BCs const& bcs)
+  void processAssocWithTime(Collisions const& collisions, 
+                            TracksWithSel const& tracksUnfiltered, 
+                            TracksWithSelFilter const& tracks, 
+                            AmbiguousTracks const& ambiguousTracks, 
+                            soa::Join<aod::BCs, aod::Run3MatchedToBCSparse> const& bcs, FT0s const& ft0s)
   {
-    collisionAssociator.runAssocWithTime(collisions, tracksUnfiltered, tracks, ambiguousTracks, bcs, association, reverseIndices);
+    collisionAssociator.runAssocWithTime(collisions, tracksUnfiltered, tracks, ambiguousTracks, bcs, ft0s, association, reverseIndices);
   }
   PROCESS_SWITCH(TrackToCollisionAssociation, processAssocWithTime, "Use track-to-collision association based on time", true);
 
